@@ -43,8 +43,8 @@ uv run paper-agent capabilities
 uv run pytest -q
 ```
 
-`paper-agent` 默认向 stdout 输出单个 JSON 文档。`--human` 只改变 JSON 缩进，不改变字段
-合同。
+交互终端默认显示便于阅读的摘要；输出被管道、重定向或 Agent 捕获时，默认返回单个稳定
+JSON envelope。自动化脚本可显式传入 `--json`，人工排查也可用 `--human` 强制文本输出。
 
 ## 安装
 

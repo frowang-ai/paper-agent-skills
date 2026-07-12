@@ -10,6 +10,8 @@ not_for: "模块级实现细节、历史叙事或完整架构设计"
 
 ## Current Focus
 
+- 当前 PyPI/GitHub Runtime 发布版本为 `0.8.1`；`0.8.1` 增加三个生产 Skill 的 OpenAI
+  Agent UI 元数据并清理旧 wrapper 和 `.env.example`。
 - 统一运行时 Phase 1 至 Phase 5 已完成：配置/协议、远程论文库、Zotero、Skill 分发、
   Global Artifact Store、项目 workspace 和本地 `rg` 深读主流程均已落地。
 - 当前焦点转向 Phase 6：真实服务器 QA、图片/PDF complete profile、页码定位和缓存治理。
@@ -27,13 +29,15 @@ not_for: "模块级实现细节、历史叙事或完整架构设计"
 - [x] `year-author-short-title--short-id-v1` 与旧目录 `names plan/apply` 显式迁移。
 - [x] 薄 `paper-workspace` Skill 与 remote -> global -> project 本地 HTTP E2E。
 - [x] `auth set/status/delete`，支持隐藏式输入和供 Agent 使用的 `--stdin` 原子凭据写入。
+- [x] 独立 `paper-agent-setup` Bootstrap Skill 已在同级仓库完成本地实现和合同验证。
+- [x] CLI 输出按终端自适应：交互终端显示人类摘要，管道/Agent 与 `--json` 保持 JSON。
 
 ## In Progress
 
 - [ ] 在 QA automation 中使用部署服务器验证真实 assets 响应、NOT_READY 和 revision 更新。
 - [ ] 设计 complete profile 的图片/PDF资产清单，优先推动服务端 artifact manifest。
 - [ ] 增加 layout 命中位置到 PDF 页码的定位助手。
-- [ ] 建立独立公开 GitHub Bootstrap Skill 仓库和可复制的 Agent 安装 Prompt。
+- [ ] 将 `paper-agent-setup` 推送到公开 GitHub，并完成干净 Windows/macOS/Linux Agent 安装 E2E。
 
 ## Backlog
 

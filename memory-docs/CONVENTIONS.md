@@ -56,9 +56,10 @@ not_for: "决策理由、当前状态、完整运行手册或一次性偏好"
 
 ## CLI 与错误协议
 
-- Agent 命令默认向 stdout 输出单个合法 JSON 文档；日志和诊断写 stderr。
+- 非交互调用、管道、重定向与显式 `--json` 向 stdout 输出单个合法 JSON 文档；日志和诊断写 stderr。
 - 失败必须返回非零 exit code，并包含稳定错误码；不得只打印一句自然语言后返回 0。
-- 人类输出必须由显式 `--human` 开启，不能破坏默认机器可解析输出。
+- 交互终端默认输出人类可读摘要；`--human` 可显式强制，`--json` 必须始终覆盖终端检测并
+  保持机器合同。没有专用摘要渲染器的命令可暂时输出缩进 JSON。
 - `fulltext`、`summary`、`deep` 等长内容命令必须显式 `--save`，stdout 只返回路径、bytes 和标识信息。
 - 稳定错误码至少覆盖 `AUTH_MISSING`、`AUTH_INVALID`、`NOT_FOUND`、`NOT_READY`、`NETWORK_ERROR`、`CONFIG_INVALID`、`LOCAL_IO_ERROR`、`WORKSPACE_INVALID` 和 `CONFLICT`。
 - CLI 参数和响应合同变更必须有测试，并同步 Skill references 和 API surface 文档。

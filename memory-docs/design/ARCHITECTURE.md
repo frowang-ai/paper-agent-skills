@@ -224,7 +224,8 @@ paper-agent
 
 ### 6.2 JSON 成功响应
 
-默认 stdout 输出一个 JSON 文档：
+非交互 stdout、管道、重定向和显式 `--json` 输出一个 JSON 文档；交互终端默认使用人类
+摘要，`--human` 可强制该模式：
 
 ```json
 {
@@ -608,7 +609,8 @@ stdin 时，回退到用户终端中的隐藏式 `auth set`。
 - 新增一个 Frowang 相关 Skill 不需要再实现 dotenv 或 HTTP Client。
 - 用户只配置一次 Frowang Key，Codex 和 Claude Code 中的所有 Skills 均可使用。
 - Skill 目录可以被安全删除/更新而不影响配置、缓存和工作区。
-- `paper-agent` 默认输出可稳定解析的 JSON，并有端到端合同测试。
+- `paper-agent` 的非交互输出与显式 `--json` 可稳定解析，并有端到端合同测试；交互终端默认
+  输出人类可读摘要。
 - 同一 canonical paper/revision 跨项目只需从服务器下载一次。
 - 工作区同步失败不会留下半文件，也不会覆盖用户笔记。
 - standalone 和 Plugin 安装状态可诊断且不会重复暴露相同 Skill。

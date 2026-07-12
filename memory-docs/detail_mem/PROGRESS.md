@@ -17,6 +17,8 @@ not_for: "长期架构理由、代码目录导航或项目历史"
   credentials、JSON envelope v1、错误码/exit code、capabilities 和 doctor。
 - 入口：`src/paper_agent/config/`、`src/paper_agent/protocol/`、`src/paper_agent/cli.py`。
 - 后续：旧 Skill-local `.env` 的交互迁移和 OS Keyring 尚未实现。
+- 输出：交互终端自动使用人类格式，非交互/管道/Agent 与显式 `--json` 保持 envelope v1；
+  `skills install/update/uninstall/status` 已有专用摘要渲染。
 
 ### Phase 2：远程论文库
 
@@ -82,7 +84,8 @@ not_for: "长期架构理由、代码目录导航或项目历史"
 
 - `scripts/sync_skills.py`：旧 Claude user 同步命令的兼容 wrapper，现委托给安全 installer。
 - `scripts/build_skill_zip.py`：从 canonical `SkillSource` snapshot 构建薄 Skill zip。
-- `skills/*/scripts/*_cli.py`：旧命令参数兼容 wrapper，不再承载业务实现。
+- `0.8.1` 已删除 Skill 内旧 CLI wrapper 与旧 `.env.example`；生产 Skill 只保留编排、引用和
+  Agent UI 元数据，统一调用 PATH 上的 `paper-agent`。
 - `skills/demo-zotero-connection/`：只用于探索/诊断，不进入正式分发。
 
 ## 测试与验证
@@ -105,7 +108,9 @@ not_for: "长期架构理由、代码目录导航或项目历史"
 - 图片/PDF complete profile、页码定位、结构化日志、OS Keyring、缓存 GC 和可选 FTS5。
 - Runtime 已增加 `auth set/status/delete`：隐藏式交互、`--stdin`、dotenv 保留式原子更新、
   新旧 Frowang 别名清除和无 secret JSON 合同。
-- 独立 GitHub Bootstrap Skill 与固定安装 Prompt 已确定架构，仓库和发布 E2E 尚未创建。
+- 独立 Bootstrap Skill 已在同级 `../paper-agent-setup/` 建立，包含固定安装 Prompt、跨平台
+  uv/PyPI 安装、认证、Codex/Claude standalone 编排和故障排查；5 项合同测试与 Skill
+  validator 通过。公开 GitHub 推送和干净 Windows/macOS/Linux Agent 安装 E2E 尚未完成。
 
 ## 已知技术债
 

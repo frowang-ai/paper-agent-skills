@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-07-12
+
+### Changed
+
+- **Adaptive CLI Output**: Interactive terminals now receive readable Skill install/status summaries, while pipes, redirected output, Agents, and explicit `--json` keep the stable JSON envelope.
+
 ## [0.8.1] - 2026-07-12
 
 ### Added
@@ -83,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plugin bundle builder for marketplace distribution.
 - Unified configuration and credential management.
 
+[0.8.2]: https://github.com/frowang-ai/paper-agent-skills/releases/tag/v0.8.2
 [0.8.1]: https://github.com/frowang-ai/paper-agent-skills/releases/tag/v0.8.1
 [0.8.0]: https://github.com/frowang-ai/paper-agent-skills/releases/tag/v0.8.0
 [0.7.0]: https://github.com/frowang-ai/paper-agent-skills/releases/tag/v0.7.0

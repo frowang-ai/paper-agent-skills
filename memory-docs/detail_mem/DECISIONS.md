@@ -149,3 +149,10 @@ not_for: "尚未定论的想法、操作规则或当前状态"
 - 决策：Runtime 提供 `auth set/status/delete`；隐藏式交互是默认输入，Agent 自动化使用 `auth set --stdin`。写入只使用 canonical `FROWANG_API_KEY`，清除凭据文件中的新旧 Frowang 别名，并保留 Zotero、注释和未知项。
 - 理由：stdin 避免 secret 进入 `paper-agent` 进程参数；原子替换和统一存储减少手工编辑 dotenv 的损坏风险。用户把 Key 发入对话本身仍属于其选择的信任边界。
 - 影响：CLI、JSON、异常和状态永不返回 Key；`auth delete` 无法修改外部环境变量；执行适配器不能独立传递 stdin 时必须回退到用户终端隐藏输入。
+
+### DEC-020：CLI 按终端能力自适应输出（2026-07-12）
+
+- 背景：默认单行 JSON 适合 Skill、Agent 和脚本解析，但人类直接执行安装与状态命令时很难快速判断各平台结果；原 `--human` 仅缩进 JSON，也没有真正改善信息层级。
+- 决策：stdout 为交互终端时默认输出人类可读摘要；非交互、管道、重定向和显式 `--json` 保持稳定 JSON envelope。`--human` 用于显式强制文本模式。
+- 理由：TTY 检测能在不要求用户记参数的情况下改善直接使用体验，同时让 Agent 和自动化继续消费结构化合同。
+- 影响：先为 `skills install/update/uninstall/status` 提供专用摘要；其他命令可渐进增加 renderer。JSON schema、错误码和非交互回归测试继续作为兼容合同。

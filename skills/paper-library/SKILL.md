@@ -24,7 +24,8 @@ paper-agent doctor
 单独传递 stdin 时，应改请用户使用隐藏式输入。用户只需配置一次；兼容环境变量
 `FROWANG_API_KEY`、`PAPER_API_KEY` 仍可用，但不要在 Skill 目录创建新的 `.env`。
 
-所有正式命令默认向 stdout 输出单个 JSON envelope：
+非交互执行默认向 stdout 输出单个 JSON envelope；若执行工具分配了交互 TTY，必须给需要
+结构化解析的命令显式增加 `--json`：
 
 ```json
 {"schema_version":"1","success":true,"data":{},"meta":{"command":"library.list"}}

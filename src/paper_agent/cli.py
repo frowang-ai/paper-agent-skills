@@ -86,11 +86,11 @@ _REQUEST_ID: ContextVar[str] = ContextVar("paper_agent_request_id", default="")
 
 JsonOption = Annotated[
     bool,
-    typer.Option("--json", help="Emit JSON (the default)."),
+    typer.Option("--json", help="Force the stable JSON envelope."),
 ]
 HumanOption = Annotated[
     bool,
-    typer.Option("--human", help="Emit indented human-readable output."),
+    typer.Option("--human", help="Force human-readable terminal output."),
 ]
 
 
@@ -120,6 +120,86 @@ def _write_payload(payload: dict[str, Any], *, human: bool = False) -> None:
     sys.stdout.write(rendered + "\n")
 
 
+def _stdout_is_tty() -> bool:
+    try:
+        return sys.stdout.isatty()
+    except (AttributeError, OSError):
+        return False
+
+
+def _use_human_output(*, json_output: bool, human: bool) -> bool:
+    if human:
+        return True
+    if json_output:
+        return False
+    return _stdout_is_tty()
+
+
+def _skill_targets(data: dict[str, Any]) -> list[dict[str, Any]]:
+    targets = data.get("targets")
+    if isinstance(targets, list):
+        return [item for item in targets if isinstance(item, dict)]
+    return [data]
+
+
+def _skill_target_heading(item: dict[str, Any]) -> str:
+    target = item.get("target", {})
+    platform = str(target.get("platform", "unknown")).capitalize()
+    scope = target.get("scope", "unknown")
+    root = target.get("root", "unknown")
+    return f"{platform} · {scope} · {root}"
+
+
+def _render_skill_action(data: dict[str, Any]) -> str:
+    labels = (
+        ("installed", "Installed"),
+        ("updated", "Updated"),
+        ("skipped", "Already current"),
+        ("uninstalled", "Uninstalled"),
+        ("not_installed", "Not installed"),
+    )
+    lines = [f"Paper Agent Skills {__version__}"]
+    for index, item in enumerate(_skill_targets(data)):
+        if index:
+            lines.append("")
+        lines.append(_skill_target_heading(item))
+        for key, label in labels:
+            values = item.get(key)
+            if values:
+                lines.append(f"  {label}: {', '.join(str(value) for value in values)}")
+    return "\n".join(lines)
+
+
+def _render_skill_status(data: dict[str, Any]) -> str:
+    lines = [f"Paper Agent Skills {__version__}"]
+    for index, item in enumerate(_skill_targets(data)):
+        if index:
+            lines.append("")
+        lines.append(_skill_target_heading(item))
+        skills = item.get("skills", {})
+        for name, details in skills.items():
+            status = details.get("status", "unknown")
+            version = details.get("installed_version")
+            suffix = f" (v{version})" if version else ""
+            lines.append(f"  {name}: {status}{suffix}")
+            modified = details.get("target_modified", [])
+            unmanaged = details.get("unmanaged_files", [])
+            if modified:
+                lines.append(f"    Modified: {', '.join(str(path) for path in modified)}")
+            if unmanaged:
+                lines.append(f"    Unmanaged: {', '.join(str(path) for path in unmanaged)}")
+    return "\n".join(lines)
+
+
+def _render_human(command: str, data: Any) -> str:
+    if isinstance(data, dict):
+        if command in {"skills.install", "skills.update", "skills.uninstall"}:
+            return _render_skill_action(data)
+        if command == "skills.status":
+            return _render_skill_status(data)
+    return json.dumps(data, ensure_ascii=False, indent=2)
+
+
 def _emit_success(
     command: str,
     data: Any,
@@ -129,14 +209,16 @@ def _emit_success(
 ) -> None:
     _ACTIVE_COMMAND.set(command)
     _validate_output_flags(json_output, human)
+    if _use_human_output(json_output=json_output, human=human):
+        sys.stdout.write(_render_human(command, data) + "\n")
+        return
     _write_payload(
         success_envelope(
             data=data,
             command=command,
             runtime_version=__version__,
             request_id=_request_id(),
-        ),
-        human=human,
+        )
     )
 
 

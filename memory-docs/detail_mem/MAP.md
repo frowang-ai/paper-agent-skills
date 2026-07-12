@@ -64,7 +64,6 @@ not_for: "完整目录树、全量 API、术语定义或当前状态"
 ### Paper Library CLI
 
 - 正式入口：`src/paper_agent/cli.py` 的 `library` 命令组
-- 旧兼容入口：`skills/paper-library/scripts/paper_cli.py`
 - 测试：`tests/_test_paper_cli.py`
 
 ### 共享 Paper API Client
@@ -88,7 +87,6 @@ not_for: "完整目录树、全量 API、术语定义或当前状态"
 
 - Skill 入口：`skills/zotero-upload/SKILL.md`
 - 正式 CLI：`src/paper_agent/cli.py` 的 `zotero` 命令组
-- 旧兼容入口：`skills/zotero-upload/scripts/zotero_upload_cli.py`
 
 ### Zotero 与 Paper API 适配器
 
