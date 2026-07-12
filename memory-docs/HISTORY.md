@@ -155,3 +155,13 @@ test。Bootstrap 仓库不复制 Runtime 业务代码。
 - 相关决策：DEC-018、DEC-019
 - 实现：`src/paper_agent/config/credentials.py`、`src/paper_agent/cli.py`
 - 验证：90 项离线测试通过；本轮 Ruff 因沙箱外审批服务 503 未能执行，不能记为已通过。
+
+## 2026-07-12：补齐生产 Skill 的 Codex UI 元数据
+
+`paper-library` 与 `zotero-upload` 新增 `agents/openai.yaml`，现在与 `paper-workspace` 一样提供
+显示名、短描述和引用 `$skill-name` 的默认 Prompt。canonical manifest、wheel data-files 和
+Plugin/SkillSource 合同测试同步纳入这些文件，避免元数据只存在于源码而未进入分发产物。
+
+并发发布清理已删除旧 `paper_cli.py` 与 `zotero_upload_cli.py` wrapper；本次同步移除 3 条失效
+兼容测试和 pytest 的旧 scripts 路径。当前全量 88 项测试通过，两个新增元数据 Skill 均通过
+`quick_validate.py`。

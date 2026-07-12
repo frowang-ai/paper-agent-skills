@@ -1,6 +1,6 @@
 [project]
 name = "paper-agent-skills"
-version = "0.8.0"
+version = "0.8.1"
 description = "Shared runtime and agent skills for Frowang paper research workflows."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -49,11 +49,13 @@ where = ["src"]
 [tool.setuptools.data-files]
 "share/paper-agent/skills" = ["skills/manifest.json"]
 "share/paper-agent/skills/paper-library" = ["skills/paper-library/SKILL.md"]
+"share/paper-agent/skills/paper-library/agents" = ["skills/paper-library/agents/*.yaml"]
 "share/paper-agent/skills/paper-library/references" = ["skills/paper-library/references/*.md"]
 "share/paper-agent/skills/paper-workspace" = ["skills/paper-workspace/SKILL.md"]
 "share/paper-agent/skills/paper-workspace/agents" = ["skills/paper-workspace/agents/*.yaml"]
 "share/paper-agent/skills/paper-workspace/references" = ["skills/paper-workspace/references/*.md"]
 "share/paper-agent/skills/zotero-upload" = ["skills/zotero-upload/SKILL.md"]
+"share/paper-agent/skills/zotero-upload/agents" = ["skills/zotero-upload/agents/*.yaml"]
 "share/paper-agent/skills/zotero-upload/docs" = ["skills/zotero-upload/docs/*.md"]
 
 [build-system]
@@ -64,4 +66,4 @@ build-backend = "setuptools.build_meta"
 # 项目惯例测试文件以 _test_ 开头（见仓库 CLAUDE.md）
 python_files = ["_test_*.py", "test_*.py"]
 testpaths = ["tests"]
-pythonpath = ["src", "packages", "skills/paper-library/scripts"]
+pythonpath = ["src", "packages"]

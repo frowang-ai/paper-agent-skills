@@ -29,6 +29,10 @@ def test_plugin_bundle_has_dual_manifests_and_only_production_skills(
     assert codex["name"] == claude["name"] == "paper-agent"
     assert codex["skills"] == "./skills/"
     assert result["skills"] == ["paper-library", "paper-workspace", "zotero-upload"]
+    for skill_name in result["skills"]:
+        assert (
+            destination / "skills" / skill_name / "agents" / "openai.yaml"
+        ).is_file()
     assert not (destination / "skills" / "demo-zotero-connection").exists()
     assert not list(destination.rglob(".env"))
     assert not list(destination.rglob("*.pdf"))

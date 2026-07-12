@@ -155,6 +155,4 @@ JWT 只能作为当前命令参数使用，不得写入项目文件、Skill 文�
 4. 在本地用 `rg -n -C 5 "term" <project-root>/papers/*/full.md` 高频定位原文。
 5. 引用证据时同时记录论文 short ID、文件路径和行号；需要页码时结合 `layout.json`。
 
-更完整的端点和参数语义见 `references/api-endpoints.md`。旧入口
-`python scripts/paper_cli.py ...` 仅用于迁移，会向 stderr 输出 deprecation warning；新工作流
-不得继续依赖它。
+更完整的端点和参数语义见 `references/api-endpoints.md`。

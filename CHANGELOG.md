@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-07-12
+
+### Added
+
+- **OpenAI Agents**: Added `agents/openai.yaml` configuration files for `paper-library` and `zotero-upload` skills.
+- **Manifest Update**: Updated `skills/manifest.json` to include new agent configurations.
+
+### Removed
+
+- **Legacy Scripts**: Removed obsolete wrapper scripts from `skills/paper-library/scripts/` and `skills/zotero-upload/scripts/`.
+- **Legacy .env Examples**: Removed `.env.example` files (replaced by `auth set` command).
+
 ## [0.8.0] - 2026-07-12
 
 ### Added
@@ -71,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plugin bundle builder for marketplace distribution.
 - Unified configuration and credential management.
 
+[0.8.1]: https://github.com/frowang-ai/paper-agent-skills/releases/tag/v0.8.1
 [0.8.0]: https://github.com/frowang-ai/paper-agent-skills/releases/tag/v0.8.0
 [0.7.0]: https://github.com/frowang-ai/paper-agent-skills/releases/tag/v0.7.0
 [0.6.0]: https://github.com/frowang-ai/paper-agent-skills/releases/tag/v0.6.0

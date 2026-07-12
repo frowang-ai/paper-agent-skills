@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zotero Upload"
+  short_description: "Import Zotero papers into Frowang"
+  default_prompt: "Use $zotero-upload to preview and import papers from a Zotero collection into Frowang."

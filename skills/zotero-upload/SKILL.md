@@ -122,5 +122,4 @@ paper-agent zotero migrate-state /absolute/path/to/sync_state.json
 | `LOCAL_IO_ERROR` | 检查 Zotero storage 或全局 state DB 权限 |
 | `REMOTE_ERROR` | 查看逐项结果，不要把部分成功误报为整体失败或整体成功 |
 
-详细连接排查见 `docs/zotero_troubleshooting.md`。旧入口
-`python scripts/zotero_upload_cli.py ...` 仅为 deprecation wrapper，新工作流不得继续依赖。
+详细连接排查见 `docs/zotero_troubleshooting.md`。

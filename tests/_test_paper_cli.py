@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
@@ -8,37 +7,7 @@ import pytest
 from paper_agent.protocol import CommandError, ErrorCode
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "packages"))
-sys.path.insert(0, str(REPO_ROOT / "skills" / "paper-library" / "scripts"))
-
-import paper_cli  # noqa: E402
-from paper_api_client import load_api_key  # noqa: E402
-
-
-def test_legacy_wrapper_translates_all_command_groups() -> None:
-    assert paper_cli._translate_argv(["paper", "list"]) == ["library", "list"]
-    assert paper_cli._translate_argv(["tag", "add", "P-1", "NLP"]) == [
-        "library", "tag", "add", "P-1", "NLP"
-    ]
-    assert paper_cli._translate_argv(["note", "list", "P-1"]) == [
-        "library", "note", "list", "P-1"
-    ]
-    assert paper_cli._translate_argv(["collection", "list"]) == [
-        "library", "collection", "list"
-    ]
-    assert paper_cli._translate_argv(["key", "list", "--jwt-token", "jwt"]) == [
-        "library", "key", "list", "--jwt-token", "jwt"
-    ]
-
-
-def test_legacy_wrapper_moves_global_options_to_new_positions() -> None:
-    translated = paper_cli._translate_argv(
-        ["--human", "--api-key", "pk_explicit", "paper", "list"]
-    )
-    assert translated == [
-        "library", "--api-key", "pk_explicit", "list", "--human"
-    ]
+from paper_api_client import load_api_key
 
 
 def test_compat_key_loader_prefers_explicit_then_environment(monkeypatch) -> None:

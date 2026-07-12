@@ -72,3 +72,17 @@ def test_skill_source_uses_manifest_allowlist_and_stable_hash(tmp_path: Path) ->
     assert ".env" not in snapshot.files
     assert "downloads/paper.pdf" not in snapshot.files
 
+
+def test_production_skills_include_codex_interface_metadata() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    source = SkillSource(repo_root / "skills")
+
+    for skill_name in source.skill_names():
+        snapshot = source.snapshot(skill_name)
+        metadata_path = "agents/openai.yaml"
+
+        assert metadata_path in snapshot.files
+        metadata = (snapshot.root / metadata_path).read_text(encoding="utf-8")
+        assert "display_name:" in metadata
+        assert "short_description:" in metadata
+        assert f"${skill_name}" in metadata

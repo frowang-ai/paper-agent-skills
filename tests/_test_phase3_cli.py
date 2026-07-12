@@ -64,21 +64,3 @@ def test_zotero_migrate_state_is_idempotent(tmp_path: Path) -> None:
     assert json.loads(first.stdout)["data"]["imported"] == 1
     assert second.returncode == 0
     assert json.loads(second.stdout)["data"]["skipped"] == 1
-
-
-def test_legacy_zotero_wrapper_translates_sync_status() -> None:
-    scripts = REPO_ROOT / "skills" / "zotero-upload" / "scripts"
-    sys.path.insert(0, str(scripts))
-    try:
-        import zotero_upload_cli
-
-        assert zotero_upload_cli._translate_argv(["collections"]) == [
-            "zotero",
-            "collections",
-        ]
-        assert zotero_upload_cli._translate_argv(["sync-status"]) == [
-            "zotero",
-            "status",
-        ]
-    finally:
-        sys.path.remove(str(scripts))

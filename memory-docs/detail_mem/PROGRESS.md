@@ -50,6 +50,8 @@ not_for: "长期架构理由、代码目录导航或项目历史"
 
 - 状态：完成。
 - inventory：`skills/manifest.json` 发布 `paper-library`、`paper-workspace` 与 `zotero-upload` 的 allowlist 文件。
+- Agent UI：三个生产 Skill 均分发 `agents/openai.yaml`，提供显示名、短描述和显式
+  `$skill-name` 默认 Prompt。
 - wheel：canonical Skills 安装到 `<sys.prefix>/share/paper-agent/skills`，运行时可自动发现。
 - Plugin：一个 bundle 同时生成 `.codex-plugin/plugin.json`、`.claude-plugin/plugin.json` 和
   带 hash 的 `paper-agent-plugin-manifest.json`。
@@ -85,7 +87,7 @@ not_for: "长期架构理由、代码目录导航或项目历史"
 
 ## 测试与验证
 
-- Phase 1-5、目录命名与凭据管理共 90 项离线测试通过，覆盖配置、协议、Client、Service、StateStore、installer、Plugin、artifact、workspace 和 CLI。
+- Phase 1-5、目录命名、凭据管理与 Skill UI 元数据共 88 项离线测试通过，覆盖配置、协议、Client、Service、StateStore、installer、Plugin、artifact、workspace 和 CLI。测试总数因删除 3 条已退役 Skill wrapper 测试、增加 1 条生产 Skill 元数据合同测试而调整。
 - Phase 4 测试入口：`tests/_test_phase4_targets_source.py`、`_test_phase4_installer.py`、
   `_test_phase4_plugin.py`、`_test_phase4_cli.py`。
 - Phase 5 测试入口：`tests/_test_phase5_artifact_sync.py`、`_test_phase5_workspace.py`、
