@@ -1,0 +1,55 @@
+# 真实密钥 / 环境变量 —— 永不提交
+.env
+*.env
+!*.env.example
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 打包同步的复用模块副本（源在 packages/，勿提交副本）
+skills/**/_vendor/
+
+# 打包产物
+dist/
+build/
+*.egg-info/
+*.zip
+
+# 测试缓存
+.pytest_cache/
+.ruff_cache/
+
+# 测试临时目录
+tests/_test_tmp_*/
+
+# QA 构建产物
+.qa-wheel-*/
+
+# 虚拟环境
+.venv/
+venv/
+
+# IDE / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Windows 保留设备名误生成文件
+nul
+
+# Skill 下载目录
+skills/**/downloads/
+
+# SQLite 数据库（测试/运行时生成）
+*.sqlite3
+
+# 用户论文和临时文件
+trade_war_legal_protectionism.md
+
+# 覆盖率报告
+.coverage
+htmlcov/

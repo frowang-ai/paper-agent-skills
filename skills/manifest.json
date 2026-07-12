@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skills": {
+    "paper-library": {
+      "include": ["SKILL.md", "references/**"]
+    },
+    "paper-workspace": {
+      "include": ["SKILL.md", "agents/**", "references/**"]
+    },
+    "zotero-upload": {
+      "include": ["SKILL.md", "docs/**"]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Paper Workspace"
+  short_description: "Build and sync a local paper workspace"
+  default_prompt: "Use $paper-workspace to create or update this project's local paper workspace and search its paper text."

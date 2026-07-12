@@ -1,0 +1,67 @@
+[project]
+name = "paper-agent-skills"
+version = "0.8.0"
+description = "Shared runtime and agent skills for Frowang paper research workflows."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+authors = [
+    {name = "frowang-ai", email = "contact@frowang.ai"},
+]
+keywords = ["paper", "research", "agent", "zotero", "ocr", "workspace"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "httpx>=0.27",
+    "platformdirs>=4.0",
+    "pyzotero>=1.6",
+    "typer>=0.12",
+    "python-dotenv>=1.0",
+    "tomli-w>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.1.0"]
+
+[project.urls]
+Homepage = "https://github.com/frowang-ai/paper-agent-skills"
+Repository = "https://github.com/frowang-ai/paper-agent-skills"
+Issues = "https://github.com/frowang-ai/paper-agent-skills/issues"
+Changelog = "https://github.com/frowang-ai/paper-agent-skills/blob/main/CHANGELOG.md"
+
+[project.scripts]
+paper-agent = "paper_agent.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/paper-agent/skills" = ["skills/manifest.json"]
+"share/paper-agent/skills/paper-library" = ["skills/paper-library/SKILL.md"]
+"share/paper-agent/skills/paper-library/references" = ["skills/paper-library/references/*.md"]
+"share/paper-agent/skills/paper-workspace" = ["skills/paper-workspace/SKILL.md"]
+"share/paper-agent/skills/paper-workspace/agents" = ["skills/paper-workspace/agents/*.yaml"]
+"share/paper-agent/skills/paper-workspace/references" = ["skills/paper-workspace/references/*.md"]
+"share/paper-agent/skills/zotero-upload" = ["skills/zotero-upload/SKILL.md"]
+"share/paper-agent/skills/zotero-upload/docs" = ["skills/zotero-upload/docs/*.md"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+# 项目惯例测试文件以 _test_ 开头（见仓库 CLAUDE.md）
+python_files = ["_test_*.py", "test_*.py"]
+testpaths = ["tests"]
+pythonpath = ["src", "packages", "skills/paper-library/scripts"]
