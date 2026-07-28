@@ -49,8 +49,8 @@
 
 | 后端路由 | CLI 命令 | MCP tool | 状态 |
 |---------|---------|----------|------|
-| `GET /papers/{id}/notes` | `paper-agent library note list` | `list_notes` | ✅ |
-| `POST /papers/{id}/notes`（`content` query param） | `paper-agent library note add` | `add_note` | ⚠️ MCP 见待办 |
+| `GET /papers/{id}/notes` | `paper-agent library note list` | **缺 `list_notes`** | ⚠️ 见待办 |
+| `POST /papers/{id}/notes`（`content` query param） | `paper-agent library note add` | `add_note` | ✅ |
 
 ## 文件夹端点
 
@@ -104,19 +104,14 @@
 
 ## 待办（本次不修，记录追踪）
 
-### 1. MCP `add_note` 路径转义 bug
+### 1. MCP 缺 `list_notes`
 
-`mcp_paper_server/client.py` 约 156 行：
+后端有 `GET /papers/{id}/notes`，CLI 有 `note list`，MCP Client 也已有
+`list_notes(paper_id)` 方法，但 `mcp_paper_server/server.py` 尚未注册和分发
+`list_notes` Tool，因此 Agent 当前不能通过 MCP 列出论文笔记。
 
-```python
-return await self._request(
-    "POST", f"\papers\{paper_id}\notes", params={"content": content}
-)
-```
-
-`\p` 与 `\n`（换行）是无效转义，实际请求路径错乱，**MCP 的 `add_note` 调用不通**。
-应改为正斜杠 `f"/papers/{paper_id}/notes"`。
-本项目的 `LibraryService.add_note` 已使用正确路径和 query parameter。
+`add_note` 已使用正确的 `/papers/{id}/notes` 路径和 `content` query parameter，
+并已在 MCP Server 注册、分发，不再属于待办。
 
 ### 2. MCP 缺 `replace_tags`
 

@@ -1,6 +1,6 @@
 [project]
 name = "paper-agent-skills"
-version = "0.9.0"
+version = "0.9.1"
 description = "Shared runtime and agent skills for Frowang paper research workflows."
 readme = "README.md"
 requires-python = ">=3.13"
