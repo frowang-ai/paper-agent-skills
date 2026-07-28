@@ -66,7 +66,23 @@ def _server() -> Iterator[str]:
                         "assets": {
                             "ocr_markdown_url": "/outputs/task-cli/complete.md",
                             "layout_url": "/outputs/task-cli/layout.json",
+                            "metadata_url": None,
+                            "attribute_tree_url": None,
                         },
+                    },
+                }
+                content = json.dumps(payload).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+            elif self.path == "/paper-api/api/v1/papers/P-1/metadata":
+                payload = {
+                    "success": True,
+                    "data": {
+                        "title": "CLI Paper",
+                        "publication_year": 2024,
+                        "authors": [{"family": "Smith", "given": "Alice"}],
+                        "doi": "10.0000/cli",
+                        "task_id": "task-cli",
                     },
                 }
                 content = json.dumps(payload).encode()

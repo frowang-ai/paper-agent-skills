@@ -29,6 +29,15 @@ class FakeLibrary:
             "latest_task_id": self.revision,
         }
 
+    def metadata(self, paper_ref: str) -> dict[str, object]:
+        return {
+            "title": self.title,
+            "publication_year": self.publication_year,
+            "authors": self.authors,
+            "doi": "10.0000/test",
+            "task_id": self.revision,
+        }
+
     def assets(self, paper_ref: str) -> dict[str, object]:
         return {
             "paper_id": "11111111-1111-1111-1111-111111111111",

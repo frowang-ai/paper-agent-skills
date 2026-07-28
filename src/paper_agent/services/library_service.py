@@ -121,6 +121,34 @@ class LibraryService:
             self.client.request_json("GET", f"/papers/{_segment(paper_id)}/assets")
         )
 
+    def metadata(self, paper_id: str) -> Any:
+        return _unwrap(self.client.get_paper_metadata(paper_id))
+
+    def attribute_tree(self, paper_id: str) -> Any:
+        return _unwrap(self.client.get_paper_attribute_tree(paper_id))
+
+    def screenshots(self, paper_id: str, *, job_id: Optional[str] = None) -> Any:
+        return _unwrap(self.client.get_paper_screenshots(paper_id, job_id=job_id))
+
+    def create_screenshots(
+        self,
+        paper_id: str,
+        *,
+        capture_pdf: bool = True,
+        capture_html: bool = True,
+        force_rescreenshot: bool = False,
+    ) -> Any:
+        if not capture_pdf and not capture_html:
+            raise _usage("capture_pdf and capture_html cannot both be disabled")
+        return _unwrap(
+            self.client.create_paper_screenshots(
+                paper_id,
+                capture_pdf=capture_pdf,
+                capture_html=capture_html,
+                force_rescreenshot=force_rescreenshot,
+            )
+        )
+
     def download_asset(self, asset_url: str, destination: Path) -> dict[str, object]:
         return self.client.download_asset(asset_url, destination).as_dict()
 

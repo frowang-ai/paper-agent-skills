@@ -1,6 +1,6 @@
 ---
 name: paper-workspace
-description: 建立和维护项目级本地论文工作区：把 Frowang 服务器论文同步到全局 revision 缓存，再物化为项目 papers/ 下可用 rg 搜索的 full.md、layout.json 和 metadata.json。用户说“把这些论文加入当前项目”“建立论文工作区”“同步项目论文”“在这些论文全文里查找证据”时触发。
+description: 建立和维护项目级本地论文工作区：把 Frowang 服务器论文同步到全局 revision 缓存，再物化为项目 papers/ 下可用 rg 搜索的 full.md、layout.json、metadata.json（学术元数据）和 attribute_tree.json。用户说“把这些论文加入当前项目”“建立论文工作区”“同步项目论文”“在这些论文全文里查找证据”时触发。
 ---
 
 # Paper Workspace
@@ -42,7 +42,9 @@ paper-agent workspace add /absolute/project/root P-3a P-8f
 ```
 
 `add` 自动把 text profile 同步到用户级 Global Artifact Store，再复制
-`metadata.json`、`full.md` 和 `layout.json` 到项目。目录按 metadata 生成为
+`metadata.json`、`full.md`、`layout.json` 和 `attribute_tree.json`（存在时）到项目。
+其中 `metadata.json` 是服务端抽取的学术元数据（含 `citations.apa` 引文），
+论文记录与处理状态用 `library show` 实时查询。目录按 metadata 生成为
 `年份-作者-短标题--P-xxx`，例如 `2024-Smith-et-al-Inflation-Dynamics--P-3a`。目录名只用于
 浏览，论文身份以 manifest 的 canonical ID 为准。不要把远程库全部加入单个项目。
 

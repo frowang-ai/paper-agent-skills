@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-07-28
+
+### Added
+
+- **Paper Metadata API**: New `paper-agent library metadata P-xxx [--save]` command exposing the server-side extraction metadata (title/authors/DOI/journal/`citations.apa`) via `GET /papers/{id}/metadata`.
+- **Attribute Tree API**: New `paper-agent library attribute-tree P-xxx [--save]` command via `GET /papers/{id}/attribute-tree`; payload is small enough for direct agent context use.
+- **Paper Screenshots**: New `paper-agent library screenshots P-xxx` command — query existing screenshots, `--job-id` for generation progress, `--generate` (with `--no-pdf`/`--no-html`/`--force`) to trigger PDF first-pages + deep-report HTML screenshots, `--wait`/`--timeout` to poll until completion. Returns absolute `https://frowang.com/paper-api` URLs.
+- **Workspace Attribute Tree**: `workspace add` now also downloads `attribute_tree.json` (optional, `required: false`), enabling low-token local search across paper attribute trees.
+
+### Changed
+
+- **Workspace Metadata Semantics**: workspace `metadata.json` now contains the server extraction metadata (including `citations.apa`) instead of the paper record. Paper record and processing status remain available live via `library show`. Existing cached revisions are not migrated and stay compatible.
+
 ## [0.8.2] - 2026-07-12
 
 ### Changed

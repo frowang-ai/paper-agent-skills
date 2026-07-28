@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from getpass import getpass
 from contextvars import ContextVar
 from dataclasses import replace
@@ -654,6 +655,172 @@ def library_assets(
     _ACTIVE_COMMAND.set("library.assets")
     data = _library_service(ctx).assets(paper_id)
     _library_success("library.assets", data, json_output=json_output, human=human)
+
+
+def _json_to_file(data: Any, *, kind: str, paper_id: str, save: Path) -> dict[str, object]:
+    rendered = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+    destination = save.expanduser().resolve()
+    temporary = destination.with_name(f".{destination.name}.{uuid4().hex}.tmp")
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(rendered)
+        os.replace(temporary, destination)
+    except OSError as exc:
+        raise CommandError(
+            code=ErrorCode.LOCAL_IO_ERROR,
+            message="Paper Agent could not save paper content",
+            exit_code=ExitCode.LOCAL_IO_OR_INTEGRITY,
+            details={"path": str(destination), "error_type": type(exc).__name__},
+        ) from exc
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+    return {
+        "path": str(destination),
+        "bytes": len(rendered.encode("utf-8")),
+        "kind": kind,
+        "paper_id": paper_id,
+    }
+
+
+@library_app.command("metadata")
+def library_metadata(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
+    save: Annotated[
+        Optional[Path],
+        typer.Option("--save", help="Optional output JSON path."),
+    ] = None,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    _ACTIVE_COMMAND.set("library.metadata")
+    data = _library_service(ctx).metadata(paper_id)
+    if save is not None:
+        data = _json_to_file(data, kind="metadata", paper_id=paper_id, save=save)
+    _library_success("library.metadata", data, json_output=json_output, human=human)
+
+
+@library_app.command("attribute-tree")
+def library_attribute_tree(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
+    save: Annotated[
+        Optional[Path],
+        typer.Option("--save", help="Optional output JSON path."),
+    ] = None,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    _ACTIVE_COMMAND.set("library.attribute-tree")
+    data = _library_service(ctx).attribute_tree(paper_id)
+    if save is not None:
+        data = _json_to_file(data, kind="attribute_tree", paper_id=paper_id, save=save)
+    _library_success(
+        "library.attribute-tree", data, json_output=json_output, human=human
+    )
+
+
+_SCREENSHOT_TERMINAL_STATUSES = {"completed", "failed"}
+_SCREENSHOT_POLL_INTERVAL_SECONDS = 2.5
+
+
+def _wait_for_screenshots(
+    service: LibraryService,
+    paper_id: str,
+    job_id: str,
+    *,
+    timeout_seconds: float,
+) -> Any:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        data = service.screenshots(paper_id, job_id=job_id)
+        status = data.get("status") if isinstance(data, dict) else None
+        if status in _SCREENSHOT_TERMINAL_STATUSES:
+            return data
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise CommandError(
+                code=ErrorCode.REMOTE_ERROR,
+                message="Timed out waiting for paper screenshots",
+                exit_code=ExitCode.NETWORK_OR_REMOTE,
+                details={
+                    "paper_id": paper_id,
+                    "job_id": job_id,
+                    "timeout_seconds": timeout_seconds,
+                    "last_status": status,
+                },
+                retryable=True,
+            )
+        time.sleep(min(_SCREENSHOT_POLL_INTERVAL_SECONDS, remaining))
+
+
+@library_app.command("screenshots")
+def library_screenshots(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
+    job_id: Annotated[
+        Optional[str],
+        typer.Option("--job-id", help="Poll a specific screenshot generation job."),
+    ] = None,
+    generate: Annotated[
+        bool,
+        typer.Option("--generate", help="Trigger asynchronous screenshot generation."),
+    ] = False,
+    no_pdf: Annotated[
+        bool,
+        typer.Option("--no-pdf", help="Skip PDF first-pages screenshots."),
+    ] = False,
+    no_html: Annotated[
+        bool,
+        typer.Option("--no-html", help="Skip deep-report screenshots."),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Clear old screenshots and regenerate."),
+    ] = False,
+    wait: Annotated[
+        bool,
+        typer.Option("--wait", help="Poll the job until it completes or fails."),
+    ] = False,
+    timeout: Annotated[
+        float,
+        typer.Option("--timeout", help="Maximum seconds to wait with --wait."),
+    ] = 300.0,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    _ACTIVE_COMMAND.set("library.screenshots")
+    service = _library_service(ctx)
+    if generate:
+        if no_pdf and no_html:
+            raise CommandError(
+                code=ErrorCode.USAGE_ERROR,
+                message="--no-pdf and --no-html cannot be used together",
+                exit_code=ExitCode.USAGE_ERROR,
+            )
+        data = service.create_screenshots(
+            paper_id,
+            capture_pdf=not no_pdf,
+            capture_html=not no_html,
+            force_rescreenshot=force,
+        )
+        if wait:
+            job = data.get("job_id") if isinstance(data, dict) else None
+            if not isinstance(job, str) or not job:
+                raise CommandError(
+                    code=ErrorCode.REMOTE_ERROR,
+                    message="Frowang screenshot response did not include a job_id",
+                    exit_code=ExitCode.NETWORK_OR_REMOTE,
+                    details={"paper_id": paper_id},
+                )
+            data = _wait_for_screenshots(
+                service, paper_id, job, timeout_seconds=timeout
+            )
+    else:
+        data = service.screenshots(paper_id, job_id=job_id)
+    _library_success("library.screenshots", data, json_output=json_output, human=human)
 
 
 @library_app.command("download-asset")

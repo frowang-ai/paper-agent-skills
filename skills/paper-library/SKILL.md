@@ -87,6 +87,27 @@ paper-agent library download-asset "/paper-api/outputs/.../layout.json" ./papers
 `download-asset` 会校验 Frowang origin/path、编码文件名、流式写临时文件、计算 SHA-256，
 最后原子替换目标文件。不要用未经校验的 `curl` 代替该命令。
 
+学术元数据（含 `citations.apa` 引文）和属性树内容较小，可直接进入 context，
+也可 `--save` 落盘：
+
+```bash
+paper-agent library metadata P-3a
+paper-agent library metadata P-3a --save ./papers/P-3a/metadata.json
+paper-agent library attribute-tree P-3a
+paper-agent library attribute-tree P-3a --save ./papers/P-3a/attribute_tree.json
+```
+
+需要论文截图（PDF 前三页 + 深度报告长图）用于展示或发帖时：
+
+```bash
+paper-agent library screenshots P-3a                    # 查询已有截图
+paper-agent library screenshots P-3a --generate --wait  # 触发并等待生成完成
+```
+
+返回的 `html_images` / `pdf_images` 是 `https://frowang.com/paper-api/...` 绝对 URL，
+可直接展示；`--generate` 不加 `--wait` 时先返回 `job_id`，之后用
+`--job-id <id>` 查询进度。可选 `--no-pdf`、`--no-html`、`--force`、`--timeout`。
+
 ## 管理论文
 
 ```bash

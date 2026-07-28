@@ -44,21 +44,30 @@ Base URL: `https://frowang.com/paper-api/api/v1`
 | 14 | POST | /papers/{id}/reprocess | `reprocess ID` | 重新处理 |
 | 15 | PATCH | /papers/{id}/metadata | `update-metadata ID` | 修改元数据 |
 | 16 | DELETE | /papers/{id} | `delete ID` | 删除论文（软删） |
+| 17 | GET | /papers/{id}/metadata | `metadata ID [--save FILE]` | 学术元数据（title/authors/doi/citations 等） |
+| 18 | GET | /papers/{id}/attribute-tree | `attribute-tree ID [--save FILE]` | 属性树 JSON |
+| 19 | POST | /papers/{id}/screenshots | `screenshots ID --generate [--no-pdf] [--no-html] [--force] [--wait]` | 异步触发截图生成，返回 job_id |
+| 20 | GET | /papers/{id}/screenshots | `screenshots ID [--job-id J]` | 查询已有截图（绝对 URL）或指定 job 进度 |
+
+> `POST screenshots` 的 `capture_pdf` / `capture_html` / `force_rescreenshot` 均走 query
+> param；两者同时为 false 时服务端返回 422 `INVALID_REQUEST`（CLI 的 `--no-pdf` +
+> `--no-html` 在本地直接报 USAGE_ERROR）。`--wait` 按约 2.5s 间隔轮询
+> `GET ?job_id=...` 直到 `completed`/`failed` 或 `--timeout`（默认 300s）。
 
 ## 标签端点
 
 | # | Method | Path | CLI 命令 | 说明 |
 |---|--------|------|---------|------|
-| 17 | POST | /papers/{id}/tags | `tag add ID TAG...` | 添加标签（增量，裸数组 body） |
-| 18 | PUT | /papers/{id}/tags | `tag set ID TAG...` | 全量覆盖标签 |
-| 19 | DELETE | /papers/{id}/tags/{tag} | `tag remove ID TAG` | 移除单个标签 |
+| 21 | POST | /papers/{id}/tags | `tag add ID TAG...` | 添加标签（增量，裸数组 body） |
+| 22 | PUT | /papers/{id}/tags | `tag set ID TAG...` | 全量覆盖标签 |
+| 23 | DELETE | /papers/{id}/tags/{tag} | `tag remove ID TAG` | 移除单个标签 |
 
 ## 笔记端点
 
 | # | Method | Path | CLI 命令 | 说明 |
 |---|--------|------|---------|------|
-| 20 | GET | /papers/{id}/notes | `note list ID` | 列出笔记 |
-| 21 | POST | /papers/{id}/notes | `note add ID CONTENT` | 添加笔记（**content 走 query param**） |
+| 24 | GET | /papers/{id}/notes | `note list ID` | 列出笔记 |
+| 25 | POST | /papers/{id}/notes | `note add ID CONTENT` | 添加笔记（**content 走 query param**） |
 
 > ⚠️ `note add` 的 `content` 是 query parameter，不是 JSON body：
 > `POST /papers/{id}/notes?content=...`。历史版本曾误用 JSON body，已修正。
@@ -67,13 +76,13 @@ Base URL: `https://frowang.com/paper-api/api/v1`
 
 | # | Method | Path | CLI 命令 | 说明 |
 |---|--------|------|---------|------|
-| 22 | GET | /collections | `collection list` | 列出文件夹 |
-| 23 | POST | /collections | `collection create NAME` | 创建文件夹 |
-| 24 | PATCH | /collections/{key} | `collection update KEY` | 重命名/移动/排序 |
-| 25 | DELETE | /collections/{key} | `collection delete KEY` | 删除文件夹 |
-| 26 | GET | /collections/{key}/items | `collection items KEY` | 文件夹内论文 |
-| 27 | POST | /collections/{key}/items | `collection add KEY IDS...` | 论文加入文件夹 |
-| 28 | DELETE | /collections/{key}/items | `collection remove KEY IDS...` | 论文移出文件夹 |
+| 26 | GET | /collections | `collection list` | 列出文件夹 |
+| 27 | POST | /collections | `collection create NAME` | 创建文件夹 |
+| 28 | PATCH | /collections/{key} | `collection update KEY` | 重命名/移动/排序 |
+| 29 | DELETE | /collections/{key} | `collection delete KEY` | 删除文件夹 |
+| 30 | GET | /collections/{key}/items | `collection items KEY` | 文件夹内论文 |
+| 31 | POST | /collections/{key}/items | `collection add KEY IDS...` | 论文加入文件夹 |
+| 32 | DELETE | /collections/{key}/items | `collection remove KEY IDS...` | 论文移出文件夹 |
 | — | GET | /collections/assigned-task-ids | —（UI 辅助，未暴露） | 所有已分配 task_id |
 | — | GET | /collections/item-counts | —（UI 辅助，未暴露） | 各文件夹论文计数 |
 
@@ -81,9 +90,9 @@ Base URL: `https://frowang.com/paper-api/api/v1`
 
 | # | Method | Path | CLI 命令 | 说明 |
 |---|--------|------|---------|------|
-| 29 | POST | /api-keys | `key create` | 生成 Key |
-| 30 | GET | /api-keys | `key list` | 列出 Key |
-| 31 | DELETE | /api-keys/{key_id} | `key revoke ID` | 吊销 Key |
+| 33 | POST | /api-keys | `key create` | 生成 Key |
+| 34 | GET | /api-keys | `key list` | 列出 Key |
+| 35 | DELETE | /api-keys/{key_id} | `key revoke ID` | 吊销 Key |
 
 ## 响应格式
 

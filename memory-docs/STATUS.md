@@ -31,6 +31,11 @@ not_for: "模块级实现细节、历史叙事或完整架构设计"
 - [x] `auth set/status/delete`，支持隐藏式输入和供 Agent 使用的 `--stdin` 原子凭据写入。
 - [x] 独立 `paper-agent-setup` Bootstrap Skill 已在同级仓库完成本地实现和合同验证。
 - [x] CLI 输出按终端自适应：交互终端显示人类摘要，管道/Agent 与 `--json` 保持 JSON。
+- [x] 论文 metadata/attribute-tree 获取与下载：`library metadata`/`library attribute-tree`
+  CLI（含 `--save`），sync 的 `metadata.json` 改用学术元数据端点，可选
+  `attribute_tree.json` 进入 manifest（required: false）。
+- [x] 论文截图：`library screenshots` 查询已有截图/job 进度，`--generate` 异步触发，
+  `--wait` 轮询至终态；截图 URL 为绝对地址，经 `download-asset` 下载。
 
 ## In Progress
 

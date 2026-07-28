@@ -7,7 +7,7 @@ import re
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, Optional
 from uuid import uuid4
 
 from paper_agent.protocol import CommandError, ErrorCode, ExitCode
@@ -197,17 +197,29 @@ class ArtifactSyncService:
                     paper_id=paper_id,
                     revision=revision,
                 )
+            tree_url = assets.get("attribute_tree_url")
 
             staging = self.papers_root / ".staging" / f"{paper_id}-{revision}-{uuid4().hex}"
             try:
                 staging.mkdir(parents=True)
+                academic = self.library.metadata(paper_ref)
+                if not isinstance(academic, dict):
+                    raise ValueError("invalid academic metadata")
                 metadata_path = staging / "metadata.json"
-                _write_json(metadata_path, metadata)
+                _write_json(metadata_path, academic)
                 full_result = self.library.download_asset(full_url, staging / "full.md")
                 layout_result = self.library.download_asset(layout_url, staging / "layout.json")
                 if not (staging / "full.md").read_text(encoding="utf-8").strip():
                     raise ValueError("empty markdown")
                 json.loads((staging / "layout.json").read_text(encoding="utf-8"))
+                tree_result: Optional[dict[str, object]] = None
+                if isinstance(tree_url, str) and tree_url:
+                    tree_result = self.library.download_asset(
+                        tree_url, staging / "attribute_tree.json"
+                    )
+                    json.loads(
+                        (staging / "attribute_tree.json").read_text(encoding="utf-8")
+                    )
                 entries = {
                     "metadata": {
                         "path": "metadata.json",
@@ -230,6 +242,14 @@ class ArtifactSyncService:
                         "required": True,
                     },
                 }
+                if tree_result is not None:
+                    entries["attribute_tree"] = {
+                        "path": "attribute_tree.json",
+                        "bytes": tree_result["bytes"],
+                        "sha256": tree_result["sha256"],
+                        "source_url": tree_url,
+                        "required": False,
+                    }
                 manifest = {
                     "schema_version": 1,
                     "status": "committed",

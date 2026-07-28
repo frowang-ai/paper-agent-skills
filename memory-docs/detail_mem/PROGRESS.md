@@ -69,6 +69,36 @@ not_for: "长期架构理由、代码目录导航或项目历史"
 - 入口：`src/paper_agent/services/artifact_sync_service.py`。
 - 后续：图片/PDF complete profile、公开 cache list/verify/gc 和远程 checksum/ETag。
 
+### Phase 7：论文 Metadata 与 Attribute Tree
+
+- 状态：完成。
+- 能力：`GET /papers/{id}/metadata` 与 `/papers/{id}/attribute-tree` 两个新端点的 client
+  方法（`get_paper_metadata`/`get_paper_attribute_tree`）、LibraryService 解包、
+  `library metadata`/`library attribute-tree` CLI（默认 envelope 输出，`--save` 原子写
+  JSON 文件），NOT_FOUND/NOT_READY 走现有错误映射。
+- 同步：`artifact_sync_service.sync()` 的 `metadata.json` 改写 metadata 端点的学术元数据
+  （paper_id/revision/title 等控制字段仍取自 show 响应）；`attribute_tree_url` 存在时
+  下载 `attribute_tree.json` 并登记 manifest（`required: false`），缺失或为 null 时跳过；
+  已缓存旧 revision 与旧格式 metadata.json 不迁移。
+- 入口：`src/paper_agent/clients/frowang.py`、`services/library_service.py`、
+  `services/artifact_sync_service.py`、`cli.py`。
+- 测试：`tests/_test_phase7_metadata_tree.py`（client 路由/错误映射、CLI envelope 与
+  --save、sync 新 metadata.json 与可选 attribute_tree 条目）。
+
+### Phase 8：论文截图
+
+- 状态：完成。
+- 能力：`POST /papers/{id}/screenshots`（query: capture_pdf/capture_html/force_rescreenshot）
+  与 `GET /papers/{id}/screenshots`（可选 job_id）的 client 方法与 LibraryService 解包；
+  `library screenshots ID [--job-id J]` 查询已有截图（绝对 URL）或 job 进度，
+  `--generate [--no-pdf] [--no-html] [--force]` 异步触发并返回 job_id，
+  `--wait [--timeout 秒]`（默认 300s）按 2.5s 间隔轮询至 completed/failed 终态，
+  超时返回 REMOTE_ERROR；`--no-pdf`+`--no-html` 本地直接 USAGE_ERROR（对齐服务端 422）。
+  截图 URL 为绝对地址，不提供本地下载（用现有 `download-asset`）。
+- 入口：`src/paper_agent/clients/frowang.py`、`services/library_service.py`、`cli.py`。
+- 测试：`tests/_test_phase8_screenshots.py`（POST query 拼装、GET 带/不带 job_id、
+  --generate 不轮询、--wait 轮询到完成与超时、双 no 本地报错、NOT_FOUND/TASK_NOT_FOUND 映射）。
+
 ### Phase 5：Project Workspace
 
 - 状态：完成 MVP。
@@ -90,7 +120,7 @@ not_for: "长期架构理由、代码目录导航或项目历史"
 
 ## 测试与验证
 
-- Phase 1-5、目录命名、凭据管理与 Skill UI 元数据共 88 项离线测试通过，覆盖配置、协议、Client、Service、StateStore、installer、Plugin、artifact、workspace 和 CLI。测试总数因删除 3 条已退役 Skill wrapper 测试、增加 1 条生产 Skill 元数据合同测试而调整。
+- Phase 1-5、7-8、目录命名、凭据管理与 Skill UI 元数据共 114 项离线测试通过，覆盖配置、协议、Client、Service、StateStore、installer、Plugin、artifact、workspace 和 CLI。测试总数因删除 3 条已退役 Skill wrapper 测试、增加 1 条生产 Skill 元数据合同测试而调整。
 - Phase 4 测试入口：`tests/_test_phase4_targets_source.py`、`_test_phase4_installer.py`、
   `_test_phase4_plugin.py`、`_test_phase4_cli.py`。
 - Phase 5 测试入口：`tests/_test_phase5_artifact_sync.py`、`_test_phase5_workspace.py`、

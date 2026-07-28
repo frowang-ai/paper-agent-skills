@@ -31,6 +31,17 @@ class DownloadResult:
         }
 
 
+def _quoted_segment(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        raise CommandError(
+            code=ErrorCode.USAGE_ERROR,
+            message="Resource identifier cannot be empty",
+            exit_code=ExitCode.USAGE_ERROR,
+        )
+    return quote(cleaned, safe="")
+
+
 def _network_error(method: str, path: str, exc: Exception) -> CommandError:
     return CommandError(
         code=ErrorCode.NETWORK_ERROR,
@@ -330,6 +341,48 @@ class FrowangClient:
         if path.startswith(("/outputs/", "/uploads/")) and self._api_asset_prefix != "/":
             encoded_path = self._api_asset_prefix.rstrip("/") + encoded_path
         return urlunsplit((base.scheme, base.netloc, encoded_path, query, ""))
+
+    def get_paper_metadata(self, paper_id_or_ref: str) -> dict[str, Any]:
+        """Fetch the academic metadata envelope for a paper."""
+        return self.request_json(
+            "GET", f"/papers/{_quoted_segment(paper_id_or_ref)}/metadata"
+        )
+
+    def get_paper_attribute_tree(self, paper_id_or_ref: str) -> dict[str, Any]:
+        """Fetch the attribute tree envelope for a paper."""
+        return self.request_json(
+            "GET", f"/papers/{_quoted_segment(paper_id_or_ref)}/attribute-tree"
+        )
+
+    def create_paper_screenshots(
+        self,
+        paper_id_or_ref: str,
+        *,
+        capture_pdf: bool = True,
+        capture_html: bool = True,
+        force_rescreenshot: bool = False,
+    ) -> dict[str, Any]:
+        """Trigger asynchronous screenshot generation for a paper."""
+        return self.request_json(
+            "POST",
+            f"/papers/{_quoted_segment(paper_id_or_ref)}/screenshots",
+            params={
+                "capture_pdf": capture_pdf,
+                "capture_html": capture_html,
+                "force_rescreenshot": force_rescreenshot,
+            },
+        )
+
+    def get_paper_screenshots(
+        self, paper_id_or_ref: str, *, job_id: Optional[str] = None
+    ) -> dict[str, Any]:
+        """Fetch existing screenshots, or a generation job progress with job_id."""
+        params = {"job_id": job_id} if job_id else None
+        return self.request_json(
+            "GET",
+            f"/papers/{_quoted_segment(paper_id_or_ref)}/screenshots",
+            params=params,
+        )
 
     def download_asset(self, asset_url: str, destination: Path) -> DownloadResult:
         url = self._asset_url(asset_url)
