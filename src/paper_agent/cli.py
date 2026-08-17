@@ -59,6 +59,7 @@ auth_app = typer.Typer(help="Manage Paper Agent credentials.", no_args_is_help=F
 library_app = typer.Typer(help="Manage the remote Frowang paper library.", no_args_is_help=False)
 library_tag_app = typer.Typer(help="Manage paper tags.", no_args_is_help=False)
 library_note_app = typer.Typer(help="Manage paper notes.", no_args_is_help=False)
+library_annotation_app = typer.Typer(help="Manage PDF annotations.", no_args_is_help=False)
 library_collection_app = typer.Typer(help="Manage remote collections.", no_args_is_help=False)
 library_key_app = typer.Typer(help="Manage API keys with a website JWT.", no_args_is_help=False)
 zotero_app = typer.Typer(help="Import papers from Zotero.", no_args_is_help=False)
@@ -78,6 +79,7 @@ app.add_typer(workspace_app, name="workspace")
 app.add_typer(paper_app, name="paper")
 library_app.add_typer(library_tag_app, name="tag")
 library_app.add_typer(library_note_app, name="note")
+library_app.add_typer(library_annotation_app, name="annotation")
 library_app.add_typer(library_collection_app, name="collection")
 library_app.add_typer(library_key_app, name="key")
 workspace_app.add_typer(workspace_names_app, name="names")
@@ -998,6 +1000,39 @@ def library_note_add(
     _ACTIVE_COMMAND.set("library.note.add")
     data = _library_service(ctx).add_note(paper_id, content)
     _library_success("library.note.add", data, json_output=json_output, human=human)
+
+
+@library_annotation_app.command("list")
+def library_annotation_list(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument()],
+    since: Annotated[Optional[str], typer.Option("--since")] = None,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    _ACTIVE_COMMAND.set("library.annotation.list")
+    data = _library_service(ctx).list_annotations(paper_id, since=since)
+    _library_success(
+        "library.annotation.list", data, json_output=json_output, human=human
+    )
+
+
+@library_annotation_app.command("comment")
+def library_annotation_comment(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument()],
+    annotation_id: Annotated[str, typer.Argument()],
+    comment: Annotated[str, typer.Argument()],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    _ACTIVE_COMMAND.set("library.annotation.comment")
+    data = _library_service(ctx).append_annotation_comment(
+        paper_id, annotation_id, comment
+    )
+    _library_success(
+        "library.annotation.comment", data, json_output=json_output, human=human
+    )
 
 
 @library_collection_app.command("list")

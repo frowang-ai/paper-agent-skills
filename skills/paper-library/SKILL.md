@@ -126,6 +126,27 @@ paper-agent library note add P-3a "Check the robustness table"
 删除和重新处理会改变远程状态。Agent 必须先说明目标论文并取得用户确认，再执行
 `delete` 或 `reprocess`。
 
+## PDF 批注
+
+批注是用户在网页端 PDF 阅读器上做的高亮/笔记，按 `pageIndex + rects` 定位。
+Agent 只做读和 comment 追加，不创建带坐标的新高亮：
+
+```bash
+# 查看某篇论文的全部批注（含 text 选中文本和 comment）
+paper-agent library annotation list P-3a
+
+# 增量拉取（配合上次同步的 serverTime）
+paper-agent library annotation list P-3a --since 2026-08-01T00:00:00.000000
+
+# 向已有批注追加评论（换行拼接，不覆盖用户原有 comment）
+paper-agent library annotation comment P-3a ann-xxxx "Agent: 该方法与 Table 3 的结果矛盾"
+```
+
+约束：
+- `comment` 是追加语义，绝不覆盖用户已写的批注内容。
+- 不通过 `sync` 端点批量 upsert 新批注或删除批注——那是用户客户端的职责。
+- 批注 id 是客户端生成的 UUID，只能从 `annotation list` 结果中获取。
+
 ## 管理 Collection
 
 Collection 是服务器端文件夹，不等同于本地研究 workspace：

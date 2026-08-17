@@ -268,6 +268,60 @@ class LibraryService:
             )
         )
 
+    def list_annotations(self, paper_id: str, *, since: Optional[str] = None) -> Any:
+        params: dict[str, Any] = {}
+        if since:
+            params["since"] = since
+        return _unwrap(
+            self.client.request_json(
+                "GET", f"/papers/{_segment(paper_id)}/annotations", params=params
+            )
+        )
+
+    def append_annotation_comment(
+        self, paper_id: str, annotation_id: str, comment: str
+    ) -> Any:
+        """向已有批注追加 comment（换行拼接），LWW 靠服务器时钟取胜。"""
+        if not comment.strip():
+            raise _usage("Comment text cannot be empty")
+        data = _unwrap(
+            self.client.request_json(
+                "GET", f"/papers/{_segment(paper_id)}/annotations"
+            )
+        )
+        annotations = data.get("annotations", []) if isinstance(data, dict) else []
+        target = next(
+            (a for a in annotations if a.get("id") == annotation_id), None
+        )
+        if target is None:
+            raise CommandError(
+                code=ErrorCode.NOT_FOUND,
+                message=f"Annotation {annotation_id} not found on paper {paper_id}",
+                exit_code=ExitCode.RESOURCE_STATE,
+            )
+        existing = (target.get("comment") or "").rstrip()
+        merged = f"{existing}\n{comment.strip()}" if existing else comment.strip()
+        # updatedAt 用服务器时钟 +1s，确保 LWW 覆盖本地未同步的旧值
+        server_time = str(data.get("serverTime") or "")
+        if server_time:
+            from datetime import datetime, timedelta
+
+            try:
+                stamp = datetime.fromisoformat(server_time) + timedelta(seconds=1)
+                target["updatedAt"] = stamp.strftime("%Y-%m-%dT%H:%M:%S.%f")
+            except ValueError:
+                pass
+        target["comment"] = merged
+        target.pop("isDeleted", None)
+        target.pop("sortKey", None)
+        return _unwrap(
+            self.client.request_json(
+                "POST",
+                f"/papers/{_segment(paper_id)}/annotations/sync",
+                json_body={"upserts": [target], "deletions": []},
+            )
+        )
+
     def list_collections(self) -> Any:
         return _unwrap(self.client.request_json("GET", "/collections"))
 
