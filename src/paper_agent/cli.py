@@ -51,25 +51,25 @@ app = typer.Typer(
     name="paper-agent",
     help="Shared runtime for Paper Agent skills.",
     add_completion=False,
-    no_args_is_help=False,
+    no_args_is_help=True,
     pretty_exceptions_enable=False,
 )
-config_app = typer.Typer(help="Manage Paper Agent configuration.", no_args_is_help=False)
-auth_app = typer.Typer(help="Manage Paper Agent credentials.", no_args_is_help=False)
-library_app = typer.Typer(help="Manage the remote Frowang paper library.", no_args_is_help=False)
-library_tag_app = typer.Typer(help="Manage paper tags.", no_args_is_help=False)
-library_note_app = typer.Typer(help="Manage paper notes.", no_args_is_help=False)
-library_annotation_app = typer.Typer(help="Manage PDF annotations.", no_args_is_help=False)
-library_collection_app = typer.Typer(help="Manage remote collections.", no_args_is_help=False)
-library_key_app = typer.Typer(help="Manage API keys with a website JWT.", no_args_is_help=False)
-zotero_app = typer.Typer(help="Import papers from Zotero.", no_args_is_help=False)
-skills_app = typer.Typer(help="Install Paper Agent Skills and build Plugins.", no_args_is_help=False)
-workspace_app = typer.Typer(help="Manage project paper workspaces.", no_args_is_help=False)
+config_app = typer.Typer(help="Manage Paper Agent configuration.", no_args_is_help=True)
+auth_app = typer.Typer(help="Manage Paper Agent credentials.", no_args_is_help=True)
+library_app = typer.Typer(help="Manage the remote Frowang paper library.", no_args_is_help=True)
+library_tag_app = typer.Typer(help="Manage paper tags.", no_args_is_help=True)
+library_note_app = typer.Typer(help="Manage paper notes.", no_args_is_help=True)
+library_annotation_app = typer.Typer(help="Manage PDF annotations.", no_args_is_help=True)
+library_collection_app = typer.Typer(help="Manage remote collections.", no_args_is_help=True)
+library_key_app = typer.Typer(help="Manage API keys with a website JWT.", no_args_is_help=True)
+zotero_app = typer.Typer(help="Import papers from Zotero.", no_args_is_help=True)
+skills_app = typer.Typer(help="Install Paper Agent Skills and build Plugins.", no_args_is_help=True)
+workspace_app = typer.Typer(help="Manage project paper workspaces.", no_args_is_help=True)
 workspace_names_app = typer.Typer(
     help="Plan and apply readable workspace directory names.",
-    no_args_is_help=False,
+    no_args_is_help=True,
 )
-paper_app = typer.Typer(help="Sync papers into the global artifact store.", no_args_is_help=False)
+paper_app = typer.Typer(help="Sync papers into the global artifact store.", no_args_is_help=True)
 app.add_typer(config_app, name="config")
 app.add_typer(auth_app, name="auth")
 app.add_typer(library_app, name="library")
@@ -254,6 +254,11 @@ def capabilities(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List runtime capabilities and available commands.
+
+    Safe to call without configuration or credentials. Output is the JSON
+    envelope with capability flags and the full command list.
+    """
     _emit_success(
         "capabilities",
         {
@@ -315,6 +320,10 @@ def config_init(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Create the configuration file and app directories if missing.
+
+    Idempotent. Output reports the created/existing config and directory paths.
+    """
     _ACTIVE_COMMAND.set("config.init")
     manager, _ = _manager()
     result = manager.initialize()
@@ -331,6 +340,7 @@ def config_show(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Print the active configuration settings and resolved app paths."""
     _ACTIVE_COMMAND.set("config.show")
     manager, _ = _manager()
     settings = manager.load()
@@ -350,6 +360,7 @@ def config_migrate(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Migrate the configuration file to the current schema version."""
     _ACTIVE_COMMAND.set("config.migrate")
     manager, _ = _manager()
     result = manager.migrate()
@@ -366,6 +377,11 @@ def auth_status(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Show whether a Frowang API key is configured and from which source.
+
+    Never prints the key itself; output reports configured state and source
+    (for example environment:FROWANG_API_KEY).
+    """
     _ACTIVE_COMMAND.set("auth.status")
     _, credentials = _manager()
     status = credentials.status()
@@ -403,6 +419,11 @@ def auth_set(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Store a Frowang API key in the local credential store.
+
+    Prompts interactively on stderr by default. For scripts:
+    `echo "$FROWANG_API_KEY" | paper-agent auth set --stdin`
+    """
     _ACTIVE_COMMAND.set("auth.set")
     manager, _ = _manager()
     result = CredentialStore(manager.paths).set_frowang(
@@ -421,6 +442,11 @@ def auth_delete(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Delete the stored Frowang API key.
+
+    Only removes the locally stored key; environment-provided credentials
+    (for example FROWANG_API_KEY) are left unchanged.
+    """
     _ACTIVE_COMMAND.set("auth.delete")
     manager, _ = _manager()
     result = CredentialStore(manager.paths).delete_frowang()
@@ -508,6 +534,11 @@ def library_list(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List papers in the remote Frowang library.
+
+    Returns a paginated list of paper objects; page with --limit/--offset
+    and filter with --tag.
+    """
     _ACTIVE_COMMAND.set("library.list")
     data = _library_service(ctx).list_papers(
         limit=limit, offset=offset, tag=tag, sort_by=sort_by, order=order
@@ -524,6 +555,11 @@ def library_search(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Search papers by query.
+
+    --scope selects the search mode: discovery (default), metadata, or title.
+    Returns matching paper objects with scores.
+    """
     _ACTIVE_COMMAND.set("library.search")
     data = _library_service(ctx).search(query, scope=scope, limit=limit)
     _library_success("library.search", data, json_output=json_output, human=human)
@@ -542,6 +578,11 @@ def library_search_layered(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Search across layered paper content.
+
+    Layers: L1 metadata, L2 summary, L3 full text. Select one with --layer
+    (L1, L2, L3, or all) or a subset with --layers, for example --layers L1,L3.
+    """
     _ACTIVE_COMMAND.set("library.search-layered")
     data = _library_service(ctx).search_layered(
         query, layer=layer, layers=layers, limit=limit
@@ -558,6 +599,7 @@ def library_show(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Show full details for one paper."""
     _ACTIVE_COMMAND.set("library.show")
     data = _library_service(ctx).show(paper_id)
     _library_success("library.show", data, json_output=json_output, human=human)
@@ -613,6 +655,10 @@ def library_fulltext(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Download the paper's full-text Markdown to a local file.
+
+    Writes atomically to the --save path; output reports path and byte count.
+    """
     _emit_content_command(
         ctx, paper_id=paper_id, kind="fulltext", save=save,
         json_output=json_output, human=human,
@@ -627,6 +673,10 @@ def library_summary(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Download the paper's summary Markdown to a local file.
+
+    Writes atomically to the --save path; output reports path and byte count.
+    """
     _emit_content_command(
         ctx, paper_id=paper_id, kind="summary", save=save,
         json_output=json_output, human=human,
@@ -641,6 +691,10 @@ def library_deep(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Download the paper's deep-read report Markdown to a local file.
+
+    Writes atomically to the --save path; output reports path and byte count.
+    """
     _emit_content_command(
         ctx, paper_id=paper_id, kind="deep", save=save,
         json_output=json_output, human=human,
@@ -654,6 +708,10 @@ def library_assets(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List downloadable asset URLs for a paper (PDF, screenshots, and more).
+
+    Feed URLs from the output to `library download-asset`.
+    """
     _ACTIVE_COMMAND.set("library.assets")
     data = _library_service(ctx).assets(paper_id)
     _library_success("library.assets", data, json_output=json_output, human=human)
@@ -697,6 +755,10 @@ def library_metadata(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Show the extracted metadata JSON for a paper.
+
+    With --save, writes the JSON to that path instead and reports the file.
+    """
     _ACTIVE_COMMAND.set("library.metadata")
     data = _library_service(ctx).metadata(paper_id)
     if save is not None:
@@ -715,6 +777,10 @@ def library_attribute_tree(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Show the extracted attribute-tree JSON for a paper.
+
+    With --save, writes the JSON to that path instead and reports the file.
+    """
     _ACTIVE_COMMAND.set("library.attribute-tree")
     data = _library_service(ctx).attribute_tree(paper_id)
     if save is not None:
@@ -793,6 +859,11 @@ def library_screenshots(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List screenshot records, or trigger asynchronous screenshot generation.
+
+    With --generate, starts a server-side job (optionally narrowed with
+    --no-pdf/--no-html); add --wait to poll until it completes or fails.
+    """
     _ACTIVE_COMMAND.set("library.screenshots")
     service = _library_service(ctx)
     if generate:
@@ -833,6 +904,7 @@ def library_download_asset(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Download an asset URL (from `library assets`) to a local path."""
     _ACTIVE_COMMAND.set("library.download-asset")
     data = _library_service(ctx).download_asset(asset_url, destination)
     _library_success(
@@ -847,6 +919,11 @@ def library_upload(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Upload a PDF to the remote library.
+
+    Creates remote paper state; server-side processing (metadata, full text)
+    runs asynchronously after upload.
+    """
     _ACTIVE_COMMAND.set("library.upload")
     data = _library_service(ctx).upload(file)
     _library_success("library.upload", data, json_output=json_output, human=human)
@@ -859,6 +936,7 @@ def library_upload_many(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Upload several PDFs to the remote library in one call."""
     _ACTIVE_COMMAND.set("library.upload-many")
     data = _library_service(ctx).upload_many(files)
     _library_success("library.upload-many", data, json_output=json_output, human=human)
@@ -871,6 +949,7 @@ def library_upload_dir(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Upload every PDF found directly in a directory (not recursive)."""
     _ACTIVE_COMMAND.set("library.upload-dir")
     path = directory.expanduser().resolve()
     if not path.is_dir():
@@ -893,6 +972,7 @@ def library_reprocess(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Re-run server-side processing for a paper."""
     _ACTIVE_COMMAND.set("library.reprocess")
     data = _library_service(ctx).reprocess(paper_id)
     _library_success("library.reprocess", data, json_output=json_output, human=human)
@@ -911,6 +991,10 @@ def library_update_metadata(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Update metadata fields of a paper; only provided fields are changed.
+
+    Example: paper-agent library update-metadata P-123 --title "New title" --year 2024
+    """
     _ACTIVE_COMMAND.set("library.update-metadata")
     fields: dict[str, Any] = {
         "title": title,
@@ -933,6 +1017,7 @@ def library_delete(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Delete a paper and its assets from the remote library."""
     _ACTIVE_COMMAND.set("library.delete")
     data = _library_service(ctx).delete(paper_id)
     _library_success("library.delete", data, json_output=json_output, human=human)
@@ -941,11 +1026,15 @@ def library_delete(
 @library_tag_app.command("add")
 def library_tag_add(
     ctx: typer.Context,
-    paper_id: Annotated[str, typer.Argument()],
-    tags: Annotated[list[str], typer.Argument()],
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
+    tags: Annotated[list[str], typer.Argument(help="Tags to add.")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Add one or more tags to a paper (existing tags are kept).
+
+    Example: paper-agent library tag add P-123 machine-learning survey
+    """
     _ACTIVE_COMMAND.set("library.tag.add")
     data = _library_service(ctx).add_tags(paper_id, tags)
     _library_success("library.tag.add", data, json_output=json_output, human=human)
@@ -954,11 +1043,12 @@ def library_tag_add(
 @library_tag_app.command("set")
 def library_tag_set(
     ctx: typer.Context,
-    paper_id: Annotated[str, typer.Argument()],
-    tags: Annotated[list[str], typer.Argument()],
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
+    tags: Annotated[list[str], typer.Argument(help="Full replacement tag set.")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Replace all tags of a paper with the given set."""
     _ACTIVE_COMMAND.set("library.tag.set")
     data = _library_service(ctx).set_tags(paper_id, tags)
     _library_success("library.tag.set", data, json_output=json_output, human=human)
@@ -967,11 +1057,12 @@ def library_tag_set(
 @library_tag_app.command("remove")
 def library_tag_remove(
     ctx: typer.Context,
-    paper_id: Annotated[str, typer.Argument()],
-    tag: Annotated[str, typer.Argument()],
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
+    tag: Annotated[str, typer.Argument(help="Tag to remove.")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Remove one tag from a paper."""
     _ACTIVE_COMMAND.set("library.tag.remove")
     data = _library_service(ctx).remove_tag(paper_id, tag)
     _library_success("library.tag.remove", data, json_output=json_output, human=human)
@@ -980,10 +1071,11 @@ def library_tag_remove(
 @library_note_app.command("list")
 def library_note_list(
     ctx: typer.Context,
-    paper_id: Annotated[str, typer.Argument()],
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List notes attached to a paper."""
     _ACTIVE_COMMAND.set("library.note.list")
     data = _library_service(ctx).list_notes(paper_id)
     _library_success("library.note.list", data, json_output=json_output, human=human)
@@ -992,11 +1084,15 @@ def library_note_list(
 @library_note_app.command("add")
 def library_note_add(
     ctx: typer.Context,
-    paper_id: Annotated[str, typer.Argument()],
-    content: Annotated[str, typer.Argument()],
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
+    content: Annotated[str, typer.Argument(help="Note text (quote it if it contains spaces).")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Add a note to a paper.
+
+    Example: paper-agent library note add P-123 "Relevant to section 3"
+    """
     _ACTIVE_COMMAND.set("library.note.add")
     data = _library_service(ctx).add_note(paper_id, content)
     _library_success("library.note.add", data, json_output=json_output, human=human)
@@ -1005,11 +1101,18 @@ def library_note_add(
 @library_annotation_app.command("list")
 def library_annotation_list(
     ctx: typer.Context,
-    paper_id: Annotated[str, typer.Argument()],
-    since: Annotated[Optional[str], typer.Option("--since")] = None,
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
+    since: Annotated[
+        Optional[str],
+        typer.Option("--since", help="Only annotations updated after this ISO 8601 timestamp."),
+    ] = None,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List PDF annotations of a paper.
+
+    Use --since with an ISO 8601 timestamp for incremental sync.
+    """
     _ACTIVE_COMMAND.set("library.annotation.list")
     data = _library_service(ctx).list_annotations(paper_id, since=since)
     _library_success(
@@ -1020,12 +1123,13 @@ def library_annotation_list(
 @library_annotation_app.command("comment")
 def library_annotation_comment(
     ctx: typer.Context,
-    paper_id: Annotated[str, typer.Argument()],
-    annotation_id: Annotated[str, typer.Argument()],
-    comment: Annotated[str, typer.Argument()],
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID or UUID.")],
+    annotation_id: Annotated[str, typer.Argument(help="Annotation ID from `library annotation list`.")],
+    comment: Annotated[str, typer.Argument(help="Comment text to append.")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Append a comment to a PDF annotation."""
     _ACTIVE_COMMAND.set("library.annotation.comment")
     data = _library_service(ctx).append_annotation_comment(
         paper_id, annotation_id, comment
@@ -1041,6 +1145,7 @@ def library_collection_list(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List remote collections (with keys, names, and nesting)."""
     _ACTIVE_COMMAND.set("library.collection.list")
     data = _library_service(ctx).list_collections()
     _library_success(
@@ -1051,11 +1156,18 @@ def library_collection_list(
 @library_collection_app.command("create")
 def library_collection_create(
     ctx: typer.Context,
-    name: Annotated[str, typer.Argument()],
-    parent: Annotated[Optional[str], typer.Option("--parent")] = None,
+    name: Annotated[str, typer.Argument(help="Collection name.")],
+    parent: Annotated[
+        Optional[str],
+        typer.Option("--parent", help="Parent collection key to nest under."),
+    ] = None,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Create a remote collection.
+
+    Example: paper-agent library collection create "Reading list" --parent ABC123
+    """
     _ACTIVE_COMMAND.set("library.collection.create")
     data = _library_service(ctx).create_collection(name, parent)
     _library_success(
@@ -1066,13 +1178,17 @@ def library_collection_create(
 @library_collection_app.command("update")
 def library_collection_update(
     ctx: typer.Context,
-    key: Annotated[str, typer.Argument()],
-    name: Annotated[Optional[str], typer.Option("--name")] = None,
-    parent: Annotated[Optional[str], typer.Option("--parent")] = None,
-    sort_order: Annotated[Optional[int], typer.Option("--sort")] = None,
+    key: Annotated[str, typer.Argument(help="Collection key.")],
+    name: Annotated[Optional[str], typer.Option("--name", help="New collection name.")] = None,
+    parent: Annotated[
+        Optional[str],
+        typer.Option("--parent", help="New parent collection key; pass null to detach."),
+    ] = None,
+    sort_order: Annotated[Optional[int], typer.Option("--sort", help="Sort order integer.")] = None,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Update a collection's name, parent, or sort order; only provided fields change."""
     _ACTIVE_COMMAND.set("library.collection.update")
     fields: dict[str, Any] = {}
     if name is not None:
@@ -1090,10 +1206,11 @@ def library_collection_update(
 @library_collection_app.command("delete")
 def library_collection_delete(
     ctx: typer.Context,
-    key: Annotated[str, typer.Argument()],
+    key: Annotated[str, typer.Argument(help="Collection key.")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Delete a remote collection."""
     _ACTIVE_COMMAND.set("library.collection.delete")
     data = _library_service(ctx).delete_collection(key)
     _library_success(
@@ -1104,10 +1221,11 @@ def library_collection_delete(
 @library_collection_app.command("items")
 def library_collection_items(
     ctx: typer.Context,
-    key: Annotated[str, typer.Argument()],
+    key: Annotated[str, typer.Argument(help="Collection key.")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List papers in a collection."""
     _ACTIVE_COMMAND.set("library.collection.items")
     data = _library_service(ctx).collection_items(key)
     _library_success(
@@ -1118,11 +1236,12 @@ def library_collection_items(
 @library_collection_app.command("add")
 def library_collection_add(
     ctx: typer.Context,
-    key: Annotated[str, typer.Argument()],
-    task_ids: Annotated[list[str], typer.Argument()],
+    key: Annotated[str, typer.Argument(help="Collection key.")],
+    task_ids: Annotated[list[str], typer.Argument(help="Paper IDs to add.")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Add papers to a collection."""
     _ACTIVE_COMMAND.set("library.collection.add")
     data = _library_service(ctx).add_collection_items(key, task_ids)
     _library_success("library.collection.add", data, json_output=json_output, human=human)
@@ -1131,11 +1250,12 @@ def library_collection_add(
 @library_collection_app.command("remove")
 def library_collection_remove(
     ctx: typer.Context,
-    key: Annotated[str, typer.Argument()],
-    task_ids: Annotated[list[str], typer.Argument()],
+    key: Annotated[str, typer.Argument(help="Collection key.")],
+    task_ids: Annotated[list[str], typer.Argument(help="Paper IDs to remove.")],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Remove papers from a collection."""
     _ACTIVE_COMMAND.set("library.collection.remove")
     data = _library_service(ctx).remove_collection_items(key, task_ids)
     _library_success(
@@ -1146,11 +1266,19 @@ def library_collection_remove(
 @library_key_app.command("create")
 def library_key_create(
     ctx: typer.Context,
-    jwt_token: Annotated[str, typer.Option("--jwt-token")],
+    jwt_token: Annotated[
+        str,
+        typer.Option("--jwt-token", help="Website JWT authorizing key management."),
+    ],
     name: Annotated[str, typer.Option(help="Key name.")] = "default",
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Create a Frowang API key using a website JWT.
+
+    The new key is shown once in the output; store it with
+    `paper-agent auth set --stdin`.
+    """
     _ACTIVE_COMMAND.set("library.key.create")
     data = _library_service(ctx).create_api_key(jwt_token, name)
     _library_success("library.key.create", data, json_output=json_output, human=human)
@@ -1159,10 +1287,14 @@ def library_key_create(
 @library_key_app.command("list")
 def library_key_list(
     ctx: typer.Context,
-    jwt_token: Annotated[str, typer.Option("--jwt-token")],
+    jwt_token: Annotated[
+        str,
+        typer.Option("--jwt-token", help="Website JWT authorizing key management."),
+    ],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List existing Frowang API keys for the JWT's account."""
     _ACTIVE_COMMAND.set("library.key.list")
     data = _library_service(ctx).list_api_keys(jwt_token)
     _library_success("library.key.list", data, json_output=json_output, human=human)
@@ -1171,11 +1303,15 @@ def library_key_list(
 @library_key_app.command("revoke")
 def library_key_revoke(
     ctx: typer.Context,
-    key_id: Annotated[str, typer.Argument()],
-    jwt_token: Annotated[str, typer.Option("--jwt-token")],
+    key_id: Annotated[str, typer.Argument(help="API key ID to revoke.")],
+    jwt_token: Annotated[
+        str,
+        typer.Option("--jwt-token", help="Website JWT authorizing key management."),
+    ],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Revoke a Frowang API key (permanent; the key stops working)."""
     _ACTIVE_COMMAND.set("library.key.revoke")
     data = _library_service(ctx).revoke_api_key(key_id, jwt_token)
     _library_success("library.key.revoke", data, json_output=json_output, human=human)
@@ -1278,6 +1414,7 @@ def zotero_collections(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List Zotero collections from the configured library."""
     _ACTIVE_COMMAND.set("zotero.collections")
     data = _zotero_import_service(ctx, require_frowang=False).collections()
     _emit_success(
@@ -1296,6 +1433,7 @@ def zotero_items(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List items in a Zotero collection; --recursive includes child collections."""
     _ACTIVE_COMMAND.set("zotero.items")
     data = _zotero_import_service(ctx, require_frowang=False).items(
         collection_key, recursive=recursive
@@ -1322,6 +1460,12 @@ def zotero_upload(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Upload a Zotero collection to Frowang.
+
+    Creates a matching remote collection tree, uploads item PDFs, and records
+    local sync state. Use --dry-run to preview without any remote or state
+    changes.
+    """
     _ACTIVE_COMMAND.set("zotero.upload")
     data = _zotero_import_service(
         ctx, require_frowang=not dry_run
@@ -1349,6 +1493,10 @@ def zotero_upload_one(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Upload a single Zotero item to Frowang and record sync state.
+
+    Use --target to place the paper in a specific Frowang collection.
+    """
     _ACTIVE_COMMAND.set("zotero.upload-one")
     data = _zotero_import_service(ctx, require_frowang=True).upload_one(
         item_key,
@@ -1366,6 +1514,7 @@ def zotero_status(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Show recent Zotero sync records from the local state database."""
     _ACTIVE_COMMAND.set("zotero.status")
     _, profile, library_id, store = _zotero_state_context()
     data = store.zotero_status(profile, library_id, limit=limit)
@@ -1378,6 +1527,7 @@ def zotero_migrate_state(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Import a legacy sync_state.json into the local state database."""
     _ACTIVE_COMMAND.set("zotero.migrate-state")
     _, profile, library_id, store = _zotero_state_context()
     data = store.import_legacy_zotero_json(
@@ -1437,6 +1587,10 @@ def skills_list(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List Skills available in the canonical source.
+
+    Output includes the source root and each skill's manifest snapshot.
+    """
     _ACTIVE_COMMAND.set("skills.list")
     source = resolve_skills_source()
     data = {
@@ -1486,6 +1640,11 @@ def skills_install(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Install Skills into an agent platform's skill directory.
+
+    Writes managed files and records the installation in local state.
+    Example: paper-agent skills install --platform claude paper-library
+    """
     _ACTIVE_COMMAND.set("skills.install")
     data = _run_skill_target_command(
         "install",
@@ -1503,11 +1662,12 @@ def skills_update(
     platform: Annotated[str, typer.Option("--platform", help="codex, claude, or all.")],
     skills: Annotated[Optional[list[str]], typer.Argument(help="Skills; empty means all.")] = None,
     scope: Annotated[str, typer.Option(help="user or project.")] = "user",
-    project_root: Annotated[Optional[Path], typer.Option("--project-root")] = None,
+    project_root: Annotated[Optional[Path], typer.Option("--project-root", help="Required for project scope.")] = None,
     force: Annotated[bool, typer.Option(help="Explicitly overwrite modified managed files.")] = False,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Update installed Skills to the runtime's bundled version."""
     _ACTIVE_COMMAND.set("skills.update")
     data = _run_skill_target_command(
         "update",
@@ -1525,10 +1685,11 @@ def skills_status(
     platform: Annotated[str, typer.Option("--platform", help="codex, claude, or all.")],
     skills: Annotated[Optional[list[str]], typer.Argument(help="Skills; empty means all.")] = None,
     scope: Annotated[str, typer.Option(help="user or project.")] = "user",
-    project_root: Annotated[Optional[Path], typer.Option("--project-root")] = None,
+    project_root: Annotated[Optional[Path], typer.Option("--project-root", help="Required for project scope.")] = None,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Show installation status and drift for managed Skills."""
     _ACTIVE_COMMAND.set("skills.status")
     data = _run_skill_target_command(
         "status",
@@ -1545,10 +1706,11 @@ def skills_diff(
     platform: Annotated[str, typer.Option("--platform", help="codex, claude, or all.")],
     skills: Annotated[Optional[list[str]], typer.Argument(help="Skills; empty means all.")] = None,
     scope: Annotated[str, typer.Option(help="user or project.")] = "user",
-    project_root: Annotated[Optional[Path], typer.Option("--project-root")] = None,
+    project_root: Annotated[Optional[Path], typer.Option("--project-root", help="Required for project scope.")] = None,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Show file diffs between installed Skills and the canonical source."""
     _ACTIVE_COMMAND.set("skills.diff")
     data = _run_skill_target_command(
         "diff",
@@ -1565,11 +1727,15 @@ def skills_uninstall(
     platform: Annotated[str, typer.Option("--platform", help="codex, claude, or all.")],
     skills: Annotated[Optional[list[str]], typer.Argument(help="Skills; empty means all.")] = None,
     scope: Annotated[str, typer.Option(help="user or project.")] = "user",
-    project_root: Annotated[Optional[Path], typer.Option("--project-root")] = None,
+    project_root: Annotated[Optional[Path], typer.Option("--project-root", help="Required for project scope.")] = None,
     force: Annotated[bool, typer.Option(help="Remove modified managed files.")] = False,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Remove managed Skills from an agent platform's skill directory.
+
+    Modified managed files are kept unless --force is given.
+    """
     _ACTIVE_COMMAND.set("skills.uninstall")
     data = _run_skill_target_command(
         "uninstall",
@@ -1589,6 +1755,7 @@ def skills_plugin_build(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Build a Plugin bundle from the canonical Skill source into a directory."""
     _ACTIVE_COMMAND.set("skills.plugin-build")
     data = PluginBundleBuilder(resolve_skills_source()).build(
         destination,
@@ -1615,8 +1782,8 @@ def _remote_options(ctx: typer.Context, api_key: Optional[str], base_url: Option
 @workspace_app.callback(invoke_without_command=True)
 def workspace_root(
     ctx: typer.Context,
-    api_key: Annotated[Optional[str], typer.Option("--api-key")] = None,
-    base_url: Annotated[Optional[str], typer.Option("--base-url")] = None,
+    api_key: Annotated[Optional[str], typer.Option("--api-key", help="Explicit Frowang API key.")] = None,
+    base_url: Annotated[Optional[str], typer.Option("--base-url", help="Override the active Frowang base URL.")] = None,
 ) -> None:
     _remote_options(ctx, api_key, base_url)
 
@@ -1624,8 +1791,8 @@ def workspace_root(
 @paper_app.callback(invoke_without_command=True)
 def paper_root(
     ctx: typer.Context,
-    api_key: Annotated[Optional[str], typer.Option("--api-key")] = None,
-    base_url: Annotated[Optional[str], typer.Option("--base-url")] = None,
+    api_key: Annotated[Optional[str], typer.Option("--api-key", help="Explicit Frowang API key.")] = None,
+    base_url: Annotated[Optional[str], typer.Option("--base-url", help="Override the active Frowang base URL.")] = None,
 ) -> None:
     _remote_options(ctx, api_key, base_url)
 
@@ -1672,6 +1839,11 @@ def paper_pull(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Sync a paper's artifacts into the global artifact store.
+
+    Downloads full text, summary, and assets into the shared data directory;
+    output lists written paths.
+    """
     _ACTIVE_COMMAND.set("paper.pull")
     data = _artifact_service(ctx).sync(paper_id)
     _emit_success("paper.pull", data, json_output=json_output, human=human)
@@ -1684,6 +1856,10 @@ def workspace_init(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Initialize a paper workspace in a project root.
+
+    Creates the workspace directory structure and registers it in local state.
+    """
     _ACTIVE_COMMAND.set("workspace.init")
     data = _workspace_service(ctx, remote=False).init(project_root)
     _emit_success("workspace.init", data, json_output=json_output, human=human)
@@ -1697,6 +1873,11 @@ def workspace_add(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Add papers to a workspace, downloading their artifacts.
+
+    Writes paper files under the workspace's papers directory and updates
+    local sync state.
+    """
     _ACTIVE_COMMAND.set("workspace.add")
     data = _workspace_service(ctx, remote=True).add(project_root, paper_ids)
     _emit_success("workspace.add", data, json_output=json_output, human=human)
@@ -1709,6 +1890,7 @@ def workspace_list(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """List papers in a workspace."""
     _ACTIVE_COMMAND.set("workspace.list")
     data = _workspace_service(ctx, remote=False).list(project_root)
     _emit_success("workspace.list", data, json_output=json_output, human=human)
@@ -1721,6 +1903,7 @@ def workspace_status(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Show per-paper sync status of a workspace (current, drifted, missing)."""
     _ACTIVE_COMMAND.set("workspace.status")
     data = _workspace_service(ctx, remote=False).status(project_root)
     _emit_success("workspace.status", data, json_output=json_output, human=human)
@@ -1736,6 +1919,10 @@ def workspace_sync(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Sync workspace papers with the artifact store.
+
+    Without paper IDs, syncs all papers registered in the workspace.
+    """
     _ACTIVE_COMMAND.set("workspace.sync")
     data = _workspace_service(ctx, remote=True).sync(project_root, paper_ids)
     _emit_success("workspace.sync", data, json_output=json_output, human=human)
@@ -1750,6 +1937,10 @@ def workspace_remove(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Remove papers from a workspace, deleting their managed files.
+
+    Modified files are kept unless --force is given.
+    """
     _ACTIVE_COMMAND.set("workspace.remove")
     data = _workspace_service(ctx, remote=False).remove(
         project_root, paper_ids, force=force
@@ -1767,6 +1958,10 @@ def workspace_names_plan(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Plan readable directory names for workspace papers.
+
+    Preview only: prints the proposed renames without touching the filesystem.
+    """
     _ACTIVE_COMMAND.set("workspace.names.plan")
     data = _workspace_service(ctx, remote=False).names_plan(project_root, paper_ids)
     _emit_success("workspace.names.plan", data, json_output=json_output, human=human)
@@ -1782,6 +1977,7 @@ def workspace_names_apply(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Apply the planned readable directory names, renaming paper directories."""
     _ACTIVE_COMMAND.set("workspace.names.apply")
     data = _workspace_service(ctx, remote=False).names_apply(project_root, paper_ids)
     _emit_success("workspace.names.apply", data, json_output=json_output, human=human)
@@ -1804,6 +2000,12 @@ def doctor(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
+    """Run local and remote diagnostics.
+
+    Output is a checks map covering directories, config, credentials, Frowang
+    connectivity, Zotero, and Skill installations; overall status is ok or
+    warning. Read-only except for directory probes.
+    """
     _ACTIVE_COMMAND.set("doctor")
     manager, credentials = _manager()
     paths = manager.paths
@@ -1997,6 +2199,10 @@ def main() -> None:
         )
         raise SystemExit(int(exc.exit_code)) from None
     except click.ClickException as exc:
+        # no_args_is_help raises NoArgsIsHelpError after printing the help
+        # text; exit without wrapping it in a JSON error envelope.
+        if type(exc).__name__ == "NoArgsIsHelpError":
+            raise SystemExit(int(exc.exit_code)) from None
         error = CommandError(
             code=ErrorCode.USAGE_ERROR,
             message=exc.format_message(),

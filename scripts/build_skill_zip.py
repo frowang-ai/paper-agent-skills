@@ -34,7 +34,11 @@ def build(skill_name: str) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build a thin Paper Agent Skill zip")
-    parser.add_argument("--skill", default="paper-library")
+    parser.add_argument(
+        "--skill",
+        default="paper-library",
+        help="Skill name from the skills/ source directory (default: paper-library).",
+    )
     args = parser.parse_args()
     build(args.skill)
 

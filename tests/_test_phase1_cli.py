@@ -203,11 +203,14 @@ def test_unknown_command_returns_json_usage_error(tmp_path: Path) -> None:
     assert payload["meta"]["command"] == "cli"
 
 
-def test_no_command_and_conflicting_output_flags_are_usage_errors(tmp_path: Path) -> None:
+def test_no_command_prints_help_and_conflicting_flags_are_usage_errors(
+    tmp_path: Path,
+) -> None:
     no_command = _run_cli(tmp_path)
-    no_command_payload = _json_stdout(no_command)
     assert no_command.returncode == 2
-    assert no_command_payload["error"]["code"] == "USAGE_ERROR"
+    assert "Usage" in no_command.stdout
+    assert "capabilities" in no_command.stdout
+    assert "USAGE_ERROR" not in no_command.stdout
 
     conflicting = _run_cli(tmp_path, "capabilities", "--json", "--human")
     conflicting_payload = _json_stdout(conflicting)
