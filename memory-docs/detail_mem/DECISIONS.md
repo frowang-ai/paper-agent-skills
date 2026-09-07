@@ -156,3 +156,17 @@ not_for: "尚未定论的想法、操作规则或当前状态"
 - 决策：stdout 为交互终端时默认输出人类可读摘要；非交互、管道、重定向和显式 `--json` 保持稳定 JSON envelope。`--human` 用于显式强制文本模式。
 - 理由：TTY 检测能在不要求用户记参数的情况下改善直接使用体验，同时让 Agent 和自动化继续消费结构化合同。
 - 影响：先为 `skills install/update/uninstall/status` 提供专用摘要；其他命令可渐进增加 renderer。JSON schema、错误码和非交互回归测试继续作为兼容合同。
+
+### DEC-021：放宽 Agent 代配 Key 的措辞，Skill 主动邀请用户在对话中提供 Key（2026-09-07）
+
+- 背景：DEC-019 把 Agent 代配限制为"仅独立 stdin 通道"并禁止 Key 进入命令参数/日志，实际使用中过于严格，多数 Agent 执行工具无法区分该通道，用户体验受阻。
+- 决策：Skill 与 setup 编排统一改为邀请用户直接把 Frowang Key 发给 Agent，Agent 经 `auth set --stdin` 写入；只保留面向用户的提醒（Key 权限高、勿泄露给他人、配置后不复述）。本决策取代 DEC-019 中"仅限独立 stdin 通道、否则回退隐藏输入"的部分；DEC-019 的原子写入、统一存储和脱敏输出部分继续有效。
+- 理由：用户把 Key 发入对话本来就是其选择的信任边界（DEC-019 已承认）；机械约束不能改变这一点，只会迫使 Agent 走向更差的变通。
+- 影响：`skills/` 三个生产 Skill、`paper-agent-setup` 的安全边界与故障排查、CONVENTIONS 凭据节约同步更新；setup 契约测试断言改为新措辞。
+
+### DEC-022：Runtime 更新检查采用缓存式提醒，升级由 Agent 在新进程执行（2026-09-07）
+
+- 背景：用户希望达到 Kimi Code/Codex 式的更新体验——Skill 被使用时发现远端新版并提醒，确认后升级再重跑原命令。
+- 决策：`UpdateCheckService` 查询 PyPI JSON API，结果缓存 24h（`cache_dir/update_check.json`，原子写入），3s 短超时，失败静默降级，`PAPER_AGENT_DISABLE_UPDATE_CHECK=1` 可关闭；CLI 暴露 `paper-agent update check [--refresh]`，`doctor` 输出带 `update` 检查。升级动作不内置到 CLI，由 Skill 编排 Agent 执行 `uv tool install paper-agent-skills --upgrade` 加 `paper-agent skills update --platform all`。
+- 理由：uv tool 环境在 Windows 上存在运行中文件锁，运行中的 CLI 自替换不可靠；Agent 另起进程执行升级既避开锁，也复用现有 skills update 机制刷新已装 Skill 副本。缓存式检查避免每次命令都付出网络延迟。
+- 影响：`update check` 永不因网络失败返回非零；`doctor --no-remote` 跳过更新检查（保持无网络语义）；三个生产 Skill 前置检查段处理 `update_available` 提醒。

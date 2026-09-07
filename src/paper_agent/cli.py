@@ -40,6 +40,7 @@ from paper_agent.services import (
     ArtifactSyncService,
     LibraryService,
     SkillInstallService,
+    UpdateCheckService,
     WorkspaceService,
     ZoteroImportService,
 )
@@ -70,6 +71,7 @@ workspace_names_app = typer.Typer(
     no_args_is_help=True,
 )
 paper_app = typer.Typer(help="Sync papers into the global artifact store.", no_args_is_help=True)
+update_app = typer.Typer(help="Check for runtime updates.", no_args_is_help=True)
 app.add_typer(config_app, name="config")
 app.add_typer(auth_app, name="auth")
 app.add_typer(library_app, name="library")
@@ -77,6 +79,7 @@ app.add_typer(zotero_app, name="zotero")
 app.add_typer(skills_app, name="skills")
 app.add_typer(workspace_app, name="workspace")
 app.add_typer(paper_app, name="paper")
+app.add_typer(update_app, name="update")
 library_app.add_typer(library_tag_app, name="tag")
 library_app.add_typer(library_note_app, name="note")
 library_app.add_typer(library_annotation_app, name="annotation")
@@ -194,12 +197,31 @@ def _render_skill_status(data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _render_update_check(data: dict[str, Any]) -> str:
+    current = data.get("current_version", "unknown")
+    status = data.get("status", "unknown")
+    if status == "update_available":
+        latest = data.get("latest_version", "unknown")
+        return (
+            f"Paper Agent Skills {current} → new version {latest} available.\n"
+            "Run: uv tool install paper-agent-skills --upgrade\n"
+            "Then refresh installed Skills: paper-agent skills update --platform all"
+        )
+    if status == "ok":
+        return f"Paper Agent Skills {current} is up to date."
+    if status == "disabled":
+        return f"Paper Agent Skills {current} (update check disabled)."
+    return f"Paper Agent Skills {current} (update status unknown; try --refresh)."
+
+
 def _render_human(command: str, data: Any) -> str:
     if isinstance(data, dict):
         if command in {"skills.install", "skills.update", "skills.uninstall"}:
             return _render_skill_action(data)
         if command == "skills.status":
             return _render_skill_status(data)
+        if command == "update.check":
+            return _render_update_check(data)
     return json.dumps(data, ensure_ascii=False, indent=2)
 
 
@@ -308,11 +330,33 @@ def capabilities(
                 "workspace names plan",
                 "workspace names apply",
                 "paper pull",
+                "update check",
             ],
         },
         json_output=json_output,
         human=human,
     )
+
+
+@update_app.command("check")
+def update_check(
+    refresh: Annotated[
+        bool,
+        typer.Option("--refresh", help="Bypass the 24h cache and query PyPI now."),
+    ] = False,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Check PyPI for a newer paper-agent-skills release.
+
+    Read-only and cached for 24 hours; network failures degrade to a stale
+    cache hit or an ``unknown`` status without failing the command. Disable
+    entirely with PAPER_AGENT_DISABLE_UPDATE_CHECK=1.
+    """
+    _ACTIVE_COMMAND.set("update.check")
+    service = UpdateCheckService(resolve_app_paths(), current_version=__version__)
+    data = service.check(refresh=refresh)
+    _emit_success("update.check", data, json_output=json_output, human=human)
 
 
 @config_app.command("init")
@@ -2046,6 +2090,10 @@ def doctor(
         "status": "ok" if credential_status.configured else "warning",
         **credential_status.as_dict(),
     }
+    if remote:
+        checks["update"] = UpdateCheckService(paths, current_version=__version__).check()
+    else:
+        checks["update"] = {"status": "not_run", "reason": "disabled_by_option"}
     if not remote:
         checks["remote"] = {"status": "not_run", "reason": "disabled_by_option"}
     elif not paths.config_file.is_file():

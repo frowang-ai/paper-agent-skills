@@ -18,10 +18,14 @@ paper-agent auth status
 paper-agent doctor
 ```
 
-若 `auth status` 显示未配置，优先让用户运行 `paper-agent auth set` 并在终端隐藏输入。若用户
-已经明确在对话中提供 Key，并要求 Agent 代为配置，只能通过进程标准输入调用
-`paper-agent auth set --stdin`；不得把 Key 拼进命令参数、回答、日志或临时文件。执行工具不能
-单独传递 stdin 时，应改请用户使用隐藏式输入。用户只需配置一次；兼容环境变量
+若 `doctor` 输出中的 `update` 检查显示 `update_available`（或运行 `paper-agent update check`
+确认），告知用户有新版本；经用户确认后执行 `uv tool install paper-agent-skills --upgrade`，
+再运行 `paper-agent skills update --platform all` 刷新已安装 Skill，然后重跑用户原本的命令。
+
+若 `auth status` 显示未配置，请用户直接把 API Key 发过来，然后运行
+`paper-agent auth set --stdin` 代为配置；用户也可以自己在终端运行 `paper-agent auth set`
+隐藏输入。提醒用户：该 Key 权限很高，可访问和修改其整个论文库，不要泄露给他人。配置完成
+后无需复述 Key。用户只需配置一次；兼容环境变量
 `FROWANG_API_KEY`、`PAPER_API_KEY` 仍可用，但不要在 Skill 目录创建新的 `.env`。
 
 非交互执行默认向 stdout 输出单个 JSON envelope；若执行工具分配了交互 TTY，必须给需要

@@ -10,8 +10,9 @@ not_for: "模块级实现细节、历史叙事或完整架构设计"
 
 ## Current Focus
 
-- 当前 PyPI/GitHub Runtime 发布版本为 `0.8.1`；`0.8.1` 增加三个生产 Skill 的 OpenAI
-  Agent UI 元数据并清理旧 wrapper 和 `.env.example`。
+- 当前开发版本为 `0.9.2`（在 `0.9.1` 基础上）：新增 PyPI 更新检查（`paper-agent update check`、
+  doctor `update` 项，24h 缓存可关闭），放宽 Agent 代配 Frowang Key 的 Skill 措辞
+  （DEC-021/022）。
 - 统一运行时 Phase 1 至 Phase 5 已完成：配置/协议、远程论文库、Zotero、Skill 分发、
   Global Artifact Store、项目 workspace 和本地 `rg` 深读主流程均已落地。
 - 当前焦点转向 Phase 6：真实服务器 QA、图片/PDF complete profile、页码定位和缓存治理。
@@ -36,6 +37,8 @@ not_for: "模块级实现细节、历史叙事或完整架构设计"
   `attribute_tree.json` 进入 manifest（required: false）。
 - [x] 论文截图：`library screenshots` 查询已有截图/job 进度，`--generate` 异步触发，
   `--wait` 轮询至终态；截图 URL 为绝对地址，经 `download-asset` 下载。
+- [x] PyPI 更新检查（24h 缓存、env 可关闭）与 `paper-agent update check`；Skill 编排
+  提醒用户并在确认后升级 Runtime 和已装 Skill。
 
 ## In Progress
 

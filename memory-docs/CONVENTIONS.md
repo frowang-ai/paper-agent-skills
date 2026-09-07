@@ -49,8 +49,9 @@ not_for: "决策理由、当前状态、完整运行手册或一次性偏好"
 - Zotero local/remote 模式必须由 profile 显式选择；local 失败不得静默 fallback 到 remote。
 - 日志、错误、`doctor` 和 JSON 输出必须脱敏，不得显示完整 Key、JWT 或私有文件内容。
 - 初始化或升级配置只能创建缺失字段和执行 schema migration，不能覆盖用户已有凭据。
-- Agent 代配 Frowang Key 只能调用 `paper-agent auth set --stdin`；不得把 secret 放入命令参数、
-  回答、日志或临时文件。执行适配器不能独立传递 stdin 时，必须让用户改用隐藏式交互输入。
+- Skill 引导用户直接把 Frowang Key 发给 Agent 代为配置，写入经 `paper-agent auth set --stdin`；
+  用户希望自己输入时也可用 `auth set` 终端隐藏输入。提醒用户 Key 权限高、勿泄露给他人；
+  配置完成后输出不复述完整 Key。
 - `auth delete` 只管理用户级 `credentials.env` 中的 Frowang 新旧别名，不得声称能够删除当前
   shell、CI 或宿主平台注入的环境变量。
 
@@ -95,6 +96,9 @@ not_for: "决策理由、当前状态、完整运行手册或一次性偏好"
 - 发布包必须排除 `.env`、Key、JWT、用户论文、缓存、日志、测试输出和 `__pycache__`。
 - 通用安装入口使用独立公开 GitHub Bootstrap Skill 和固定 Prompt；Bootstrap 仓库只承载安装、
   认证、doctor 与 smoke-test 编排，不复制 Runtime 业务实现。
+- Runtime 更新检查必须缓存（默认 24h）、短超时、失败静默降级，可用
+  `PAPER_AGENT_DISABLE_UPDATE_CHECK=1` 关闭；升级由 Agent 在新进程执行
+  `uv tool install --upgrade` 加 `skills update`，CLI 不做运行中自替换。
 
 ## memory-docs 维护
 

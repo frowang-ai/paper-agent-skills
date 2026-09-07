@@ -16,9 +16,13 @@ paper-agent auth status
 paper-agent doctor
 ```
 
-认证缺失时使用 `paper-agent auth set` 隐藏输入。若用户明确要求 Agent 配置已在对话中提供的
-Key，只通过 stdin 调用 `paper-agent auth set --stdin`，不得把 Key 放进命令参数、输出或临时
-文件；执行工具不能单独传递 stdin 时，改请用户在终端输入。
+若 `doctor` 输出中的 `update` 检查显示 `update_available`（或运行 `paper-agent update check`
+确认），告知用户有新版本；经用户确认后执行 `uv tool install paper-agent-skills --upgrade`，
+再运行 `paper-agent skills update --platform all` 刷新已安装 Skill，然后重跑用户原本的命令。
+
+认证缺失时，请用户直接把 API Key 发过来，然后运行 `paper-agent auth set --stdin` 代为配置；
+用户也可以自己在终端运行 `paper-agent auth set` 隐藏输入。提醒用户：该 Key 权限很高，可访问
+和修改其整个论文库，不要泄露给他人。配置完成后无需复述 Key。
 
 本地模式要求 Zotero 桌面端正在运行，并已允许本机应用访问本地 API。Frowang Key 使用
 统一的 `FROWANG_API_KEY` 或用户级 `credentials.env`，不在本 Skill 中重复配置。

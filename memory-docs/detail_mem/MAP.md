@@ -37,6 +37,11 @@ not_for: "完整目录树、全量 API、术语定义或当前状态"
 - CLI/脚本：`paper-agent skills plugin-build`、`scripts/build_plugin.py`
 - 发布清单：`skills/manifest.json`
 
+### Runtime 更新检查
+
+- 服务：`src/paper_agent/services/update_service.py`
+- CLI：`paper-agent update check`；`doctor` 输出含 `update` 检查
+
 ### Skill zip 打包
 
 - 当前入口：`scripts/build_skill_zip.py`

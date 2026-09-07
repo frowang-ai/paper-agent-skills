@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-09-07
+
+### Added
+
+- **Update Check**: New `paper-agent update check [--refresh]` command and a `update` entry in
+  `doctor` output. Queries the PyPI JSON API with a 24h atomic cache, 3s timeout, silent
+  degradation on network failure, and `PAPER_AGENT_DISABLE_UPDATE_CHECK=1` opt-out. Upgrade
+  itself stays with the agent: `uv tool install paper-agent-skills --upgrade` plus
+  `paper-agent skills update --platform all`.
+
+### Changed
+
+- **Auth Guidance**: The three production Skills now invite users to hand the Frowang API key
+  directly to the agent for configuration via `paper-agent auth set --stdin` (terminal hidden
+  input remains available), replacing the strict "independent stdin channel only" wording.
+  User-facing reminder added: the key has full access to the paper library — do not share it.
+
 ## [0.9.1] - 2026-07-28
 
 ### Fixed

@@ -99,6 +99,18 @@ not_for: "长期架构理由、代码目录导航或项目历史"
 - 测试：`tests/_test_phase8_screenshots.py`（POST query 拼装、GET 带/不带 job_id、
   --generate 不轮询、--wait 轮询到完成与超时、双 no 本地报错、NOT_FOUND/TASK_NOT_FOUND 映射）。
 
+### Phase 9：Runtime 更新检查
+
+- 状态：完成（0.9.2）。
+- 能力：`UpdateCheckService` 查询 PyPI JSON API 并与当前版本比较；结果缓存 24h
+  （`cache_dir/update_check.json`，原子写入），网络失败静默降级为陈旧缓存或 `unknown`，
+  `PAPER_AGENT_DISABLE_UPDATE_CHECK=1` 可关闭。CLI 新增 `paper-agent update check [--refresh]`；
+  `doctor` 增加 `update` 检查（`--no-remote` 时为 not_run）。升级动作由 Agent 在新进程执行
+  `uv tool install paper-agent-skills --upgrade` + `skills update`，CLI 不做运行中自替换。
+- 入口：`src/paper_agent/services/update_service.py`、`cli.py` 的 `update` 命令组。
+- 测试：`tests/_test_update_service.py`（14 项：版本比较、缓存 TTL、refresh、断网降级、
+  env 关闭、CLI envelope、doctor 接线）。
+
 ### Phase 5：Project Workspace
 
 - 状态：完成 MVP。
