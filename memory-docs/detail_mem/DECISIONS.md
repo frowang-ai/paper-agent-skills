@@ -170,3 +170,10 @@ not_for: "尚未定论的想法、操作规则或当前状态"
 - 决策：`UpdateCheckService` 查询 PyPI JSON API，结果缓存 24h（`cache_dir/update_check.json`，原子写入），3s 短超时，失败静默降级，`PAPER_AGENT_DISABLE_UPDATE_CHECK=1` 可关闭；CLI 暴露 `paper-agent update check [--refresh]`，`doctor` 输出带 `update` 检查。升级动作不内置到 CLI，由 Skill 编排 Agent 执行 `uv tool install paper-agent-skills --upgrade` 加 `paper-agent skills update --platform all`。
 - 理由：uv tool 环境在 Windows 上存在运行中文件锁，运行中的 CLI 自替换不可靠；Agent 另起进程执行升级既避开锁，也复用现有 skills update 机制刷新已装 Skill 副本。缓存式检查避免每次命令都付出网络延迟。
 - 影响：`update check` 永不因网络失败返回非零；`doctor --no-remote` 跳过更新检查（保持无网络语义）；三个生产 Skill 前置检查段处理 `update_available` 提醒。
+
+### DEC-023：Skill 分发架构演进方向——Plugin 为分发单位，Skill 保持独立入口（2026-09-07）
+
+- 背景：计划新增 paper-writing、citation-audit、idea-generation 等 skill，担心平铺进用户根目录难管理；曾设想"单个 hub skill 路由到 wheel 安装目录"。
+- 决策：否决 mega hub 主架构；分发单位演进为 Plugin（plugin-build 能力转正），skill 保持独立 discovery 入口；规模化到几十个 skill 且 trigger eval 显示下降时，再聚合为 3-5 个 domain gateway + 目录内 references 渐进加载。宏观计划见 `docs/skill-distribution-roadmap.md`，调研依据见 `docs/gpt调研.md`。
+- 理由：description 是每个功能最有价值的触发入口；Plugin 天然是"一个安装入口、多个 skill"；hub 方案会自建 discovery 层与宿主平台演化冲突，且跨沙箱/云端不可靠。
+- 影响：新 skill 一律薄壳（代码进 runtime，manifest 白名单兜底）；citation-audit 等意图清晰的能力保留独立 skill；近期需处理 Codex user skill 路径向 `$HOME/.agents/skills` 迁移的兼容。
