@@ -47,7 +47,8 @@ paper-agent workspace add /absolute/project/root P-3a P-8f
 
 `add` 自动把 text profile 同步到用户级 Global Artifact Store，再复制
 `metadata.json`、`full.md`、`layout.json` 和 `attribute_tree.json`（存在时）到项目。
-其中 `metadata.json` 是服务端抽取的学术元数据（含 `citations.apa` 引文），
+其中 `metadata.json` 是服务端抽取的学术元数据（含 `citations.apa`、`citations.bibtex`、
+`citations.csl_json` 三种引文格式），
 论文记录与处理状态用 `library show` 实时查询。目录按 metadata 生成为
 `年份-作者-短标题--P-xxx`，例如 `2024-Smith-et-al-Inflation-Dynamics--P-3a`。目录名只用于
 浏览，论文身份以 manifest 的 canonical ID 为准。不要把远程库全部加入单个项目。

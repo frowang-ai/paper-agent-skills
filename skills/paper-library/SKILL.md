@@ -91,8 +91,8 @@ paper-agent library download-asset "/paper-api/outputs/.../layout.json" ./papers
 `download-asset` 会校验 Frowang origin/path、编码文件名、流式写临时文件、计算 SHA-256，
 最后原子替换目标文件。不要用未经校验的 `curl` 代替该命令。
 
-学术元数据（含 `citations.apa` 引文）和属性树内容较小，可直接进入 context，
-也可 `--save` 落盘：
+学术元数据（含 `citations.apa`、`citations.bibtex`、`citations.csl_json` 三种引文格式）
+和属性树内容较小，可直接进入 context，也可 `--save` 落盘：
 
 ```bash
 paper-agent library metadata P-3a

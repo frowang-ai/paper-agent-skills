@@ -56,6 +56,10 @@ paper-agent zotero items COLLECTION_KEY --recursive
 
 ## 上传 Collection
 
+为用户挑选上传目标时，优先论文较少或最近有更新的 Collection；上传论文会消耗账号积分，
+正式上传前用 dry-run 的数量向用户说明规模并取得明确同意。不要提议一次性同步整个
+Zotero 库。
+
 始终先 dry-run：
 
 ```bash
