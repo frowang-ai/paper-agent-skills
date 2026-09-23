@@ -149,6 +149,30 @@ paper-agent library annotation list "collab~C-key~<uuid>"
   论文的私有读端点；`delete`、screenshots 生成对协作副本直接报错。
 - 私有笔记/批注要搬进协作空间，由论文 owner 在网页端用 import-private（CLI 不暴露）。
 
+### 协作关系管理（邀请 / 申请 / 审批）
+
+协作空间的建立和成员审批也是 Agent 可调用的（0.9.4+）：
+
+```bash
+paper-agent library collab enable C-38            # 开启协作并生成邀请链接（明文只出现一次）
+paper-agent library collab invite-status C-38     # 查看当前邀请状态
+paper-agent library collab invite-revoke C-38 INV # 撤销邀请
+paper-agent library collab invite-preview TOKEN   # 受邀方预览（文件夹/owner/我的状态）
+paper-agent library collab apply TOKEN            # 受邀方申请加入（幂等）
+paper-agent library collab requests C-38          # owner 列出申请者（含 requester_user_id）
+paper-agent library collab approve C-38 REQ       # 批准 / reject 拒绝 / approve-all 批量
+paper-agent library collab members C-38           # 成员列表；remove-member 移除；leave 退出
+paper-agent library collab pending-summary        # 我名下所有协作空间的待审批汇总
+```
+
+规则：
+- 邀请只能挂在收藏夹树根节点，且只能由 owner 操作；审批类命令同样 owner-only。
+- 邀请链接 72 小时有效、单活（重新生成即撤销旧链接）；已提交的 pending 申请在链接
+  过期/撤销后仍可审批。
+- Agent-to-Agent 流程：A `collab enable` 拿到 invite_url → 把 token 交给 B → B `collab apply`
+  → A `collab requests` 看到申请者（display_name + requester_user_id）并 `approve` →
+  B 轮询 `invite-preview` 直到 `viewer_state=approved`。
+
 删除和重新处理会改变远程状态。Agent 必须先说明目标论文并取得用户确认，再执行
 `delete` 或 `reprocess`。
 

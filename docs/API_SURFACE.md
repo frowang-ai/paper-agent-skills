@@ -71,6 +71,28 @@
 | 无协作等价端点 | `fulltext`/`summary`/`deep`/`assets`/`attribute-tree`/screenshots GET | ✅ 降级底层 paper 私有读端点 |
 | 无协作等价端点 | `delete` / screenshots 生成 | ⛔ 对 collab ID 明确报 USAGE_ERROR |
 
+## 协作关系管理端点（0.9.4 起 CLI 支持）
+
+服务端路由 `collection_collab.py`，0.9.4 起认证从仅 JWT 放宽为 `get_current_user_id`
+（X-API-Key 可用，需服务端部署后生效）。
+
+| Method | Path | CLI 命令 | 说明 |
+|--------|------|---------|------|
+| POST | /collections/{key}/collab-invites | `collab enable KEY` | 启用协作+生成邀请（树根+owner；单活；明文 invite_url 仅本次返回） |
+| GET | /collections/{key}/collab-invites | `collab invite-status KEY` | 当前邀请状态（无明文 token） |
+| DELETE | /collections/{key}/collab-invites/{invite_id} | `collab invite-revoke KEY INV` | 撤销邀请 |
+| GET | /collab-invites/{token} | `collab invite-preview TOKEN` | 受邀方预览+viewer_state |
+| POST | /collab-invites/{token}/apply | `collab apply TOKEN` | 申请加入（幂等三态） |
+| GET | /collections/{key}/join-requests | `collab requests KEY [--status]` | 申请者列表（含 requester_user_id） |
+| POST | /collections/{key}/join-requests/{id}/approve | `collab approve KEY REQ` | 批准 |
+| POST | /collections/{key}/join-requests/approve-all | `collab approve-all KEY` | 批量批准 |
+| POST | /collections/{key}/join-requests/{id}/reject | `collab reject KEY REQ` | 拒绝 |
+| GET | /collections/{key}/members | `collab members KEY` | 成员列表 |
+| DELETE | /collections/{key}/members/{uid} | `collab remove-member KEY UID` | 移除成员 |
+| POST | /collections/{key}/leave | `collab leave KEY` | 自行退出 |
+| GET | /collections/{key}/collab-info | `collab info KEY` | 我的角色+计数 |
+| GET | /collab-pending-summary | `collab pending-summary` | 我名下待审批汇总 |
+
 ## 文件夹端点
 
 | 后端路由 | CLI 命令 | MCP tool | 状态 |

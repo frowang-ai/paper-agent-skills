@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-09-23
+
+### Added
+
+- **Collab Relationship Management**: New `paper-agent library collab` command group exposing the
+  server's collaborative-collection lifecycle to agents (requires server deploy of
+  `llm_read_paper_ai_workflow` with X-API-Key auth on `collection_collab.py`):
+  `enable` (enable collab + generate invite link), `invite-status`, `invite-revoke`,
+  `invite-preview`, `apply` (join via invite token), `requests` (list join requests with
+  `requester_user_id`), `approve` / `approve-all` / `reject`, `members`, `remove-member`,
+  `leave`, `info`, `pending-summary`. Enables agent-to-agent workflows: one agent enables
+  collab and hands the invite token to another agent, which applies and polls
+  `invite-preview` until approved.
+
 ## [0.9.3] - 2026-09-23
 
 ### Added

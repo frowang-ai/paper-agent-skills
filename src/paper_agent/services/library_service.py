@@ -453,6 +453,120 @@ class LibraryService:
             )
         )
 
+    # ── 协作收藏夹：邀请、申请审批与成员管理 ────────────────────────
+    # 服务端路由：api/routers/collection_collab.py（get_current_user_id，
+    # X-API-Key 可用）。邀请链接明文 token 只在创建响应中出现一次。
+
+    def create_collab_invite(self, collection_key: str) -> Any:
+        """启用协作并生成/重生成邀请链接（单活，重建即撤销旧链接）。"""
+        return _unwrap(
+            self.client.request_json(
+                "POST", f"/collections/{_segment(collection_key)}/collab-invites"
+            )
+        )
+
+    def collab_invite_status(self, collection_key: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "GET", f"/collections/{_segment(collection_key)}/collab-invites"
+            )
+        )
+
+    def revoke_collab_invite(self, collection_key: str, invite_id: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "DELETE",
+                f"/collections/{_segment(collection_key)}/collab-invites/{_segment(invite_id)}",
+            )
+        )
+
+    def collab_invite_preview(self, token: str) -> Any:
+        return _unwrap(
+            self.client.request_json("GET", f"/collab-invites/{_segment(token)}")
+        )
+
+    def apply_collab_invite(self, token: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "POST", f"/collab-invites/{_segment(token)}/apply"
+            )
+        )
+
+    def list_join_requests(
+        self, collection_key: str, *, status: Optional[str] = None
+    ) -> Any:
+        params: dict[str, Any] = {}
+        if status:
+            normalized = status.strip().lower()
+            if normalized not in {"pending", "approved", "rejected", "all"}:
+                raise _usage(
+                    "status must be pending, approved, rejected, or all", status=status
+                )
+            params["status"] = normalized
+        return _unwrap(
+            self.client.request_json(
+                "GET",
+                f"/collections/{_segment(collection_key)}/join-requests",
+                params=params,
+            )
+        )
+
+    def approve_join_request(self, collection_key: str, request_id: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "POST",
+                f"/collections/{_segment(collection_key)}/join-requests/{_segment(request_id)}/approve",
+            )
+        )
+
+    def approve_all_join_requests(self, collection_key: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "POST",
+                f"/collections/{_segment(collection_key)}/join-requests/approve-all",
+            )
+        )
+
+    def reject_join_request(self, collection_key: str, request_id: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "POST",
+                f"/collections/{_segment(collection_key)}/join-requests/{_segment(request_id)}/reject",
+            )
+        )
+
+    def list_collab_members(self, collection_key: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "GET", f"/collections/{_segment(collection_key)}/members"
+            )
+        )
+
+    def remove_collab_member(self, collection_key: str, member_user_id: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "DELETE",
+                f"/collections/{_segment(collection_key)}/members/{_segment(member_user_id)}",
+            )
+        )
+
+    def leave_collab_collection(self, collection_key: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "POST", f"/collections/{_segment(collection_key)}/leave"
+            )
+        )
+
+    def collab_info(self, collection_key: str) -> Any:
+        return _unwrap(
+            self.client.request_json(
+                "GET", f"/collections/{_segment(collection_key)}/collab-info"
+            )
+        )
+
+    def collab_pending_summary(self) -> Any:
+        return _unwrap(self.client.request_json("GET", "/collab-pending-summary"))
+
     def create_api_key(self, jwt_token: str, name: str = "default") -> Any:
         return _unwrap(
             self.client.request_jwt(

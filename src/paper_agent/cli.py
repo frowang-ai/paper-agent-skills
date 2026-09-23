@@ -62,6 +62,10 @@ library_tag_app = typer.Typer(help="Manage paper tags.", no_args_is_help=True)
 library_note_app = typer.Typer(help="Manage paper notes.", no_args_is_help=True)
 library_annotation_app = typer.Typer(help="Manage PDF annotations.", no_args_is_help=True)
 library_collection_app = typer.Typer(help="Manage remote collections.", no_args_is_help=True)
+library_collab_app = typer.Typer(
+    help="Manage collaborative collection invites, join requests, and members.",
+    no_args_is_help=True,
+)
 library_key_app = typer.Typer(help="Manage API keys with a website JWT.", no_args_is_help=True)
 zotero_app = typer.Typer(help="Import papers from Zotero.", no_args_is_help=True)
 skills_app = typer.Typer(help="Install Paper Agent Skills and build Plugins.", no_args_is_help=True)
@@ -84,6 +88,7 @@ library_app.add_typer(library_tag_app, name="tag")
 library_app.add_typer(library_note_app, name="note")
 library_app.add_typer(library_annotation_app, name="annotation")
 library_app.add_typer(library_collection_app, name="collection")
+library_app.add_typer(library_collab_app, name="collab")
 library_app.add_typer(library_key_app, name="key")
 workspace_app.add_typer(workspace_names_app, name="names")
 
@@ -1359,6 +1364,206 @@ def library_key_revoke(
     _ACTIVE_COMMAND.set("library.key.revoke")
     data = _library_service(ctx).revoke_api_key(key_id, jwt_token)
     _library_success("library.key.revoke", data, json_output=json_output, human=human)
+
+
+# ── 协作收藏夹：邀请、申请审批与成员管理 ────────────────────────────
+
+
+@library_collab_app.command("enable")
+def library_collab_enable(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root, e.g. C-38).")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Enable collaboration on a collection and (re)generate its invite link.
+
+    One active invite per collection; regenerating revokes the previous link.
+    The plaintext invite_url is returned only once — copy it to the invitee.
+    """
+    _ACTIVE_COMMAND.set("library.collab.enable")
+    data = _library_service(ctx).create_collab_invite(collection_key)
+    _library_success("library.collab.enable", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("invite-status")
+def library_collab_invite_status(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Show the active invite status of a collaborative collection."""
+    _ACTIVE_COMMAND.set("library.collab.invite-status")
+    data = _library_service(ctx).collab_invite_status(collection_key)
+    _library_success("library.collab.invite-status", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("invite-revoke")
+def library_collab_invite_revoke(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    invite_id: Annotated[str, typer.Argument(help="Invite ID from invite-status.")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Revoke an invite link (pending applications remain reviewable)."""
+    _ACTIVE_COMMAND.set("library.collab.invite-revoke")
+    data = _library_service(ctx).revoke_collab_invite(collection_key, invite_id)
+    _library_success("library.collab.invite-revoke", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("invite-preview")
+def library_collab_invite_preview(
+    ctx: typer.Context,
+    token: Annotated[str, typer.Argument(help="Invite token (last segment of the invite URL).")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Preview an invite: collection name, owner, member count, my state."""
+    _ACTIVE_COMMAND.set("library.collab.invite-preview")
+    data = _library_service(ctx).collab_invite_preview(token)
+    _library_success("library.collab.invite-preview", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("apply")
+def library_collab_apply(
+    ctx: typer.Context,
+    token: Annotated[str, typer.Argument(help="Invite token (last segment of the invite URL).")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Apply to join a collaborative collection via its invite token.
+
+    Idempotent: returns applied / already_applied / already_member.
+    Afterwards poll `invite-preview` for viewer_state=approved.
+    """
+    _ACTIVE_COMMAND.set("library.collab.apply")
+    data = _library_service(ctx).apply_collab_invite(token)
+    _library_success("library.collab.apply", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("requests")
+def library_collab_requests(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    status: Annotated[
+        Optional[str],
+        typer.Option("--status", help="pending | approved | rejected | all (default pending)."),
+    ] = None,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """List join requests (owner only) with requester_user_id for review."""
+    _ACTIVE_COMMAND.set("library.collab.requests")
+    data = _library_service(ctx).list_join_requests(collection_key, status=status)
+    _library_success("library.collab.requests", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("approve")
+def library_collab_approve(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    request_id: Annotated[str, typer.Argument(help="Join request ID from `collab requests`.")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Approve one join request (owner only)."""
+    _ACTIVE_COMMAND.set("library.collab.approve")
+    data = _library_service(ctx).approve_join_request(collection_key, request_id)
+    _library_success("library.collab.approve", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("approve-all")
+def library_collab_approve_all(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Approve every pending join request (owner only)."""
+    _ACTIVE_COMMAND.set("library.collab.approve-all")
+    data = _library_service(ctx).approve_all_join_requests(collection_key)
+    _library_success("library.collab.approve-all", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("reject")
+def library_collab_reject(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    request_id: Annotated[str, typer.Argument(help="Join request ID from `collab requests`.")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Reject one join request (owner only)."""
+    _ACTIVE_COMMAND.set("library.collab.reject")
+    data = _library_service(ctx).reject_join_request(collection_key, request_id)
+    _library_success("library.collab.reject", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("members")
+def library_collab_members(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """List the owner and members of a collaborative collection."""
+    _ACTIVE_COMMAND.set("library.collab.members")
+    data = _library_service(ctx).list_collab_members(collection_key)
+    _library_success("library.collab.members", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("remove-member")
+def library_collab_remove_member(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    member_user_id: Annotated[str, typer.Argument(help="Member user ID to remove.")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Remove a member from a collaborative collection (owner only)."""
+    _ACTIVE_COMMAND.set("library.collab.remove-member")
+    data = _library_service(ctx).remove_collab_member(collection_key, member_user_id)
+    _library_success("library.collab.remove-member", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("leave")
+def library_collab_leave(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Leave a collaborative collection (member self-service)."""
+    _ACTIVE_COMMAND.set("library.collab.leave")
+    data = _library_service(ctx).leave_collab_collection(collection_key)
+    _library_success("library.collab.leave", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("info")
+def library_collab_info(
+    ctx: typer.Context,
+    collection_key: Annotated[str, typer.Argument(help="Collection key (tree root).")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Show my role, member count, and pending request count."""
+    _ACTIVE_COMMAND.set("library.collab.info")
+    data = _library_service(ctx).collab_info(collection_key)
+    _library_success("library.collab.info", data, json_output=json_output, human=human)
+
+
+@library_collab_app.command("pending-summary")
+def library_collab_pending_summary(
+    ctx: typer.Context,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Summarize pending join requests across all collaborative collections I own."""
+    _ACTIVE_COMMAND.set("library.collab.pending-summary")
+    data = _library_service(ctx).collab_pending_summary()
+    _library_success("library.collab.pending-summary", data, json_output=json_output, human=human)
 
 
 @zotero_app.callback(invoke_without_command=True)

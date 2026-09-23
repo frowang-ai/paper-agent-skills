@@ -217,6 +217,72 @@ def test_append_annotation_comment_collab_syncs_and_verifies() -> None:
     assert "isDeleted" not in upsert
 
 
+# ── 协作关系管理：邀请 / 申请审批 / 成员（0.9.4） ─────────────────────
+
+
+def test_collab_invite_and_join_request_paths() -> None:
+    client = _FakeClient()
+    service = _service(client)
+
+    service.create_collab_invite("C-38")
+    assert client.calls[0] == {"method": "POST", "path": "/collections/C-38/collab-invites"}
+
+    service.collab_invite_status("C-38")
+    assert client.calls[1] == {"method": "GET", "path": "/collections/C-38/collab-invites"}
+
+    service.revoke_collab_invite("C-38", "inv-1")
+    assert client.calls[2] == {
+        "method": "DELETE",
+        "path": "/collections/C-38/collab-invites/inv-1",
+    }
+
+    service.collab_invite_preview("tok abc")
+    assert client.calls[3] == {"method": "GET", "path": "/collab-invites/tok%20abc"}
+
+    service.apply_collab_invite("tok")
+    assert client.calls[4] == {"method": "POST", "path": "/collab-invites/tok/apply"}
+
+
+def test_collab_join_requests_and_members_paths() -> None:
+    client = _FakeClient()
+    service = _service(client)
+
+    service.list_join_requests("C-38")
+    assert client.calls[0]["path"] == "/collections/C-38/join-requests"
+    assert client.calls[0]["params"] == {}
+
+    service.list_join_requests("C-38", status=" Pending ")
+    assert client.calls[1]["params"] == {"status": "pending"}
+
+    with pytest.raises(CommandError) as caught:
+        service.list_join_requests("C-38", status="bogus")
+    assert caught.value.code == ErrorCode.USAGE_ERROR
+
+    service.approve_join_request("C-38", "req-1")
+    assert client.calls[2]["path"] == "/collections/C-38/join-requests/req-1/approve"
+
+    service.approve_all_join_requests("C-38")
+    assert client.calls[3]["path"] == "/collections/C-38/join-requests/approve-all"
+
+    service.reject_join_request("C-38", "req-2")
+    assert client.calls[4]["path"] == "/collections/C-38/join-requests/req-2/reject"
+
+    service.list_collab_members("C-38")
+    assert client.calls[5] == {"method": "GET", "path": "/collections/C-38/members"}
+
+    service.remove_collab_member("C-38", "761")
+    assert client.calls[6] == {"method": "DELETE", "path": "/collections/C-38/members/761"}
+
+    service.leave_collab_collection("C-38")
+    assert client.calls[7] == {"method": "POST", "path": "/collections/C-38/leave"}
+
+    service.collab_info("C-38")
+    assert client.calls[8] == {"method": "GET", "path": "/collections/C-38/collab-info"}
+
+    service.collab_pending_summary()
+    assert client.calls[9] == {"method": "GET", "path": "/collab-pending-summary"}
+
+
 def test_append_annotation_comment_collab_rejected_when_not_author() -> None:
     import copy
 

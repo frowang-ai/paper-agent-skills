@@ -101,6 +101,22 @@ scoped ID，并路由到 workspace 端点 `/collections/{root_key}/papers/{paper
 在 collab ID 下自动降级到底层 paper ID 的私有读端点（服务端已放行协作可见成员）；
 `delete` 和 screenshots 生成对 collab ID 直接报 USAGE_ERROR。
 
+### 协作关系管理（0.9.4+，`library collab` 命令组）
+
+| Method | Path | CLI 命令 | 说明 |
+|--------|------|---------|------|
+| POST | /collections/{key}/collab-invites | `collab enable KEY` | 启用协作+生成邀请链接（明文 invite_url 仅本次返回，72h 有效，单活） |
+| GET | /collections/{key}/collab-invites | `collab invite-status KEY` | 当前邀请状态 |
+| DELETE | /collections/{key}/collab-invites/{invite_id} | `collab invite-revoke KEY INV` | 撤销邀请 |
+| GET | /collab-invites/{token} | `collab invite-preview TOKEN` | 受邀方预览（viewer_state 可查审批结果） |
+| POST | /collab-invites/{token}/apply | `collab apply TOKEN` | 申请加入（幂等） |
+| GET | /collections/{key}/join-requests | `collab requests KEY` | 申请者列表（含 requester_user_id） |
+| POST | .../join-requests/{id}/approve、/reject、/approve-all | `collab approve/reject/approve-all` | owner 审批 |
+| GET/DELETE | /collections/{key}/members[/{uid}] | `collab members` / `remove-member` | 成员管理 |
+| POST | /collections/{key}/leave | `collab leave KEY` | 自行退出 |
+| GET | /collections/{key}/collab-info | `collab info KEY` | 我的角色+计数 |
+| GET | /collab-pending-summary | `collab pending-summary` | owner 名下待审批汇总（轮询用） |
+
 ## 文件夹端点
 
 | # | Method | Path | CLI 命令 | 说明 |
