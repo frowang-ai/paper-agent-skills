@@ -5,6 +5,12 @@ from typing import Any, Iterable, Optional
 from urllib.parse import quote
 
 from paper_agent.clients import FrowangClient
+from paper_agent.collab import (
+    is_collab_id,
+    paper_base,
+    split_collab_id,
+    underlying_paper_id,
+)
 from paper_agent.protocol import CommandError, ErrorCode, ExitCode
 
 
@@ -98,13 +104,17 @@ class LibraryService:
         )
 
     def show(self, paper_id: str) -> Any:
-        return _unwrap(self.client.request_json("GET", f"/papers/{_segment(paper_id)}"))
+        return _unwrap(self.client.request_json("GET", paper_base(paper_id)))
 
     def get_content(self, paper_id: str, kind: str) -> str:
         if kind not in {"fulltext", "summary", "deep"}:
             raise _usage("Unsupported paper content kind", kind=kind)
+        # 协作副本没有 workspace 版 fulltext/summary/deep 端点；底层论文的私有读
+        # 端点已放行协作可见成员，因此降级到底层 ID 读取。
         result = _unwrap(
-            self.client.request_json("GET", f"/papers/{_segment(paper_id)}/{kind}")
+            self.client.request_json(
+                "GET", f"/papers/{_segment(underlying_paper_id(paper_id))}/{kind}"
+            )
         )
         content = result.get("content") if isinstance(result, dict) else None
         if not isinstance(content, str):
@@ -118,7 +128,9 @@ class LibraryService:
 
     def assets(self, paper_id: str) -> Any:
         return _unwrap(
-            self.client.request_json("GET", f"/papers/{_segment(paper_id)}/assets")
+            self.client.request_json(
+                "GET", f"/papers/{_segment(underlying_paper_id(paper_id))}/assets"
+            )
         )
 
     def metadata(self, paper_id: str) -> Any:
@@ -153,6 +165,13 @@ class LibraryService:
         return self.client.download_asset(asset_url, destination).as_dict()
 
     def reprocess(self, paper_id: str) -> Any:
+        if is_collab_id(paper_id):
+            # 协作副本的重新处理走 workspace action 管线（克隆 task_collab_* 任务）
+            return _unwrap(
+                self.client.request_json(
+                    "POST", f"{paper_base(paper_id)}/actions/reprocess"
+                )
+            )
         return _unwrap(
             self.client.request_json("POST", f"/papers/{_segment(paper_id)}/reprocess")
         )
@@ -164,12 +183,18 @@ class LibraryService:
         return _unwrap(
             self.client.request_json(
                 "PATCH",
-                f"/papers/{_segment(paper_id)}/metadata",
+                f"{paper_base(paper_id)}/metadata",
                 json_body=body,
             )
         )
 
     def delete(self, paper_id: str) -> Any:
+        if is_collab_id(paper_id):
+            raise _usage(
+                "Collaborative copies cannot be deleted; remove the paper from the "
+                "collection instead (library collection remove)",
+                paper_id=paper_id,
+            )
         return _unwrap(
             self.client.request_json("DELETE", f"/papers/{_segment(paper_id)}")
         )
@@ -236,30 +261,40 @@ class LibraryService:
     def add_tags(self, paper_id: str, tags: list[str]) -> Any:
         return _unwrap(
             self.client.request_json(
-                "POST", f"/papers/{_segment(paper_id)}/tags", json_body=tags
+                "POST", f"{paper_base(paper_id)}/tags", json_body=tags
             )
         )
 
     def set_tags(self, paper_id: str, tags: list[str]) -> Any:
         return _unwrap(
             self.client.request_json(
-                "PUT", f"/papers/{_segment(paper_id)}/tags", json_body=tags
+                "PUT", f"{paper_base(paper_id)}/tags", json_body=tags
             )
         )
 
     def remove_tag(self, paper_id: str, tag: str) -> Any:
         return _unwrap(
             self.client.request_json(
-                "DELETE", f"/papers/{_segment(paper_id)}/tags/{_segment(tag)}"
+                "DELETE", f"{paper_base(paper_id)}/tags/{_segment(tag)}"
             )
         )
 
     def list_notes(self, paper_id: str) -> Any:
         return _unwrap(
-            self.client.request_json("GET", f"/papers/{_segment(paper_id)}/notes")
+            self.client.request_json("GET", f"{paper_base(paper_id)}/notes")
         )
 
     def add_note(self, paper_id: str, content: str) -> Any:
+        if is_collab_id(paper_id):
+            # 协作笔记走 workspace 记录（全成员可见、带作者归属），服务端约定
+            # content 用 JSON body 而不是 query param。
+            return _unwrap(
+                self.client.request_json(
+                    "POST",
+                    f"{paper_base(paper_id)}/notes",
+                    json_body={"content": content},
+                )
+            )
         return _unwrap(
             self.client.request_json(
                 "POST",
@@ -269,6 +304,16 @@ class LibraryService:
         )
 
     def list_annotations(self, paper_id: str, *, since: Optional[str] = None) -> Any:
+        if is_collab_id(paper_id):
+            if since:
+                raise _usage(
+                    "--since is not supported for collaborative copies; "
+                    "workspace annotations always return a full snapshot",
+                    paper_id=paper_id,
+                )
+            return _unwrap(
+                self.client.request_json("GET", f"{paper_base(paper_id)}/annotations")
+            )
         params: dict[str, Any] = {}
         if since:
             params["since"] = since
@@ -284,10 +329,10 @@ class LibraryService:
         """向已有批注追加 comment（换行拼接），LWW 靠服务器时钟取胜。"""
         if not comment.strip():
             raise _usage("Comment text cannot be empty")
+        collab = split_collab_id(paper_id)
+        base = paper_base(paper_id)
         data = _unwrap(
-            self.client.request_json(
-                "GET", f"/papers/{_segment(paper_id)}/annotations"
-            )
+            self.client.request_json("GET", f"{base}/annotations")
         )
         annotations = data.get("annotations", []) if isinstance(data, dict) else []
         target = next(
@@ -314,13 +359,50 @@ class LibraryService:
         target["comment"] = merged
         target.pop("isDeleted", None)
         target.pop("sortKey", None)
-        return _unwrap(
+        if collab is not None:
+            # 协作快照带 author_id/author_name/fullSnapshot 等服务端字段，
+            # upsert 只保留 AnnotationUpsert 契约字段，避免服务端校验失败。
+            allowed = {
+                "id", "type", "color", "pageIndex", "rects", "text",
+                "comment", "source", "createdAt", "updatedAt",
+            }
+            target = {key: value for key, value in target.items() if key in allowed}
+        result = _unwrap(
             self.client.request_json(
                 "POST",
-                f"/papers/{_segment(paper_id)}/annotations/sync",
+                f"{base}/annotations/sync",
                 json_body={"upserts": [target], "deletions": []},
             )
         )
+        if collab is not None:
+            # 协作空间对他人批注只读，服务端会静默跳过非本人的 upsert；
+            # 重新读取确认评论真正落地，失败时给出明确错误。
+            refreshed = _unwrap(
+                self.client.request_json("GET", f"{base}/annotations")
+            )
+            current = next(
+                (
+                    a
+                    for a in (
+                        refreshed.get("annotations", [])
+                        if isinstance(refreshed, dict)
+                        else []
+                    )
+                    if a.get("id") == annotation_id
+                ),
+                None,
+            )
+            if not current or (current.get("comment") or "").rstrip() != merged:
+                raise CommandError(
+                    code=ErrorCode.REMOTE_ERROR,
+                    message=(
+                        "Comment was not accepted: annotations authored by other "
+                        "members are read-only in a collaborative collection"
+                    ),
+                    exit_code=ExitCode.NETWORK_OR_REMOTE,
+                    details={"paper_id": paper_id, "annotation_id": annotation_id},
+                )
+        return result
 
     def list_collections(self) -> Any:
         return _unwrap(self.client.request_json("GET", "/collections"))

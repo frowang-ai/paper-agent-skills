@@ -52,6 +52,25 @@
 | `GET /papers/{id}/notes` | `paper-agent library note list` | **缺 `list_notes`** | ⚠️ 见待办 |
 | `POST /papers/{id}/notes`（`content` query param） | `paper-agent library note add` | `add_note` | ✅ |
 
+## 协作作用域端点（collab，0.9.3 起 CLI 支持）
+
+协作收藏夹里的论文是独立副本，scoped ID 形如 `collab~<root_key>~<paper_id>`（由
+`collection items` 返回）。CLI paper 级命令接受该 ID 并路由到 workspace 端点，
+读写落在共享副本（workspace 存储，全成员可见、带作者归属），不再误写私有库。
+
+| 后端路由 | CLI 命令 | 状态 |
+|---------|---------|------|
+| `GET /collections/{root}/papers/{id}` | `library show collab~...` | ✅ |
+| `GET/PATCH /collections/{root}/papers/{id}/metadata` | `metadata` / `update-metadata collab~...` | ✅ |
+| `POST/PUT/DELETE /collections/{root}/papers/{id}/tags[...]` | `tag add/set/remove collab~...` | ✅ |
+| `GET /collections/{root}/papers/{id}/notes` | `note list collab~...` | ✅ |
+| `POST /collections/{root}/papers/{id}/notes`（JSON body） | `note add collab~...` | ✅ |
+| `GET /collections/{root}/papers/{id}/annotations` | `annotation list collab~...`（全量快照，无 `--since`） | ✅ |
+| `POST /collections/{root}/papers/{id}/annotations/sync` | `annotation comment collab~...`（他人批注只读，CLI 写后重读校验） | ✅ |
+| `POST /collections/{root}/papers/{id}/actions/reprocess` | `reprocess collab~...` | ✅ |
+| 无协作等价端点 | `fulltext`/`summary`/`deep`/`assets`/`attribute-tree`/screenshots GET | ✅ 降级底层 paper 私有读端点 |
+| 无协作等价端点 | `delete` / screenshots 生成 | ⛔ 对 collab ID 明确报 USAGE_ERROR |
+
 ## 文件夹端点
 
 | 后端路由 | CLI 命令 | MCP tool | 状态 |

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-09-23
+
+### Added
+
+- **Collaborative Copies**: All `library` paper-level commands now accept `collab~<collection_key>~<paper_id>`
+  scoped IDs (as returned by `library collection items` for shared collections). Notes, annotations, tags,
+  metadata, and detail route to the workspace endpoints (`/collections/{root}/papers/{id}/...`), so writes
+  land on the shared copy visible to all members instead of the owner's private library. New module
+  `paper_agent.collab` centralizes scoped-ID parsing and routing.
+  - `note add` on a collab ID sends JSON body per workspace contract (private notes keep query param).
+  - `annotation list` on a collab ID returns the shared full snapshot (all members); `--since` is rejected.
+  - `annotation comment` on a collab ID verifies the write landed and fails loudly on read-only
+    (other-author) annotations instead of the server's silent skip.
+  - `reprocess` maps to the workspace `actions/reprocess` pipeline; `delete` and screenshot generation
+    reject collab IDs with a clear usage error.
+  - Read-only commands without workspace equivalents (`fulltext`/`summary`/`deep`/`assets`/
+    `attribute-tree`/screenshots GET) fall back to the underlying paper ID, which the server authorizes
+    via collab visibility.
+
 ## [0.9.2] - 2026-09-07
 
 ### Added

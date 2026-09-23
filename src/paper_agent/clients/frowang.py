@@ -12,6 +12,7 @@ from uuid import uuid4
 import httpx
 
 from paper_agent import __version__
+from paper_agent.collab import is_collab_id, paper_base, underlying_paper_id
 from paper_agent.protocol import CommandError, ErrorCode, ExitCode
 
 
@@ -344,14 +345,17 @@ class FrowangClient:
 
     def get_paper_metadata(self, paper_id_or_ref: str) -> dict[str, Any]:
         """Fetch the academic metadata envelope for a paper."""
+        # 协作副本走 workspace metadata（含空间内覆盖），私有库保持原路由。
         return self.request_json(
-            "GET", f"/papers/{_quoted_segment(paper_id_or_ref)}/metadata"
+            "GET", f"{paper_base(paper_id_or_ref)}/metadata"
         )
 
     def get_paper_attribute_tree(self, paper_id_or_ref: str) -> dict[str, Any]:
         """Fetch the attribute tree envelope for a paper."""
+        # 协作副本无 workspace 版 attribute-tree 端点，降级读底层论文（服务端已放行协作可见）。
         return self.request_json(
-            "GET", f"/papers/{_quoted_segment(paper_id_or_ref)}/attribute-tree"
+            "GET",
+            f"/papers/{_quoted_segment(underlying_paper_id(paper_id_or_ref))}/attribute-tree",
         )
 
     def create_paper_screenshots(
@@ -363,6 +367,16 @@ class FrowangClient:
         force_rescreenshot: bool = False,
     ) -> dict[str, Any]:
         """Trigger asynchronous screenshot generation for a paper."""
+        if is_collab_id(paper_id_or_ref):
+            raise CommandError(
+                code=ErrorCode.USAGE_ERROR,
+                message=(
+                    "Screenshot generation is not supported for collaborative "
+                    "copies; generate screenshots on the private copy instead"
+                ),
+                exit_code=ExitCode.USAGE_ERROR,
+                details={"paper_id": paper_id_or_ref},
+            )
         return self.request_json(
             "POST",
             f"/papers/{_quoted_segment(paper_id_or_ref)}/screenshots",
@@ -380,7 +394,7 @@ class FrowangClient:
         params = {"job_id": job_id} if job_id else None
         return self.request_json(
             "GET",
-            f"/papers/{_quoted_segment(paper_id_or_ref)}/screenshots",
+            f"/papers/{_quoted_segment(underlying_paper_id(paper_id_or_ref))}/screenshots",
             params=params,
         )
 

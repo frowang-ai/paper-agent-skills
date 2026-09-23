@@ -5,7 +5,7 @@ Base URL: `https://frowang.com/paper-api/api/v1`
 下表 CLI 列中的命令均以 `paper-agent library` 为前缀。例如 `search QUERY` 表示
 `paper-agent library search QUERY`，`tag add` 表示 `paper-agent library tag add`。
 
-权威来源：`llm_read_paper_ai_workflow/api/routers/{papers,collections,api_keys}.py`。
+权威来源：`llm_read_paper_ai_workflow/api/routers/{papers,collections,collection_workspace,api_keys}.py`。
 本表与后端实际路由保持一致，三端（后端 / CLI / MCP）对齐见 `../../docs/API_SURFACE.md`。
 
 ## 认证
@@ -71,6 +71,35 @@ Base URL: `https://frowang.com/paper-api/api/v1`
 
 > ⚠️ `note add` 的 `content` 是 query parameter，不是 JSON body：
 > `POST /papers/{id}/notes?content=...`。历史版本曾误用 JSON body，已修正。
+> 注意这只适用于私有库；协作副本的 note add 走 JSON body（见下节）。
+
+## 协作作用域端点（协作收藏夹里的论文副本）
+
+协作收藏夹（collab）中的论文是独立副本，`library collection items` 返回的
+`papers[].paper_id` 形如 `collab~<root_key>~<paper_id>`。CLI 的 paper 级命令直接接受这种
+scoped ID，并路由到 workspace 端点 `/collections/{root_key}/papers/{paper_id}/...`
+（权威来源 `collection_workspace.py`）——这些端点接受 `X-API-Key` 认证，权限由服务端
+`authorize()` 校验（root owner / member + 论文在共享树内 + 空间已启用，不满足一律 404）。
+协作副本的 notes/annotations/tags/metadata 存在 workspace 存储中，与私有库是两套数据，
+全成员可见且带作者归属。
+
+| Method | Path | CLI 命令 | 说明 |
+|--------|------|---------|------|
+| GET | /collections/{root}/papers/{id} | `show collab~...` | 协作副本详情 |
+| GET/PATCH | /collections/{root}/papers/{id}/metadata | `metadata` / `update-metadata collab~...` | PATCH 只改 workspace 覆盖，不动私有库 |
+| GET | /collections/{root}/papers/{id}/outline | （网页端） | 大纲 |
+| POST/PUT/PATCH/DELETE | /collections/{root}/papers/{id}/tags[...] | `tag add/set/remove collab~...` | 语义同私有端点 |
+| GET | /collections/{root}/papers/{id}/notes | `note list collab~...` | 全成员可见，带 author 归属 |
+| POST | /collections/{root}/papers/{id}/notes | `note add collab~...` | **content 走 JSON body** `{"content": ...}` |
+| PATCH/DELETE | /collections/{root}/papers/{id}/notes/{note_id} | （网页端） | 改/软删笔记 |
+| GET | /collections/{root}/papers/{id}/annotations | `annotation list collab~...` | 全量快照（含 tombstone），不支持 `since` |
+| POST | /collections/{root}/papers/{id}/annotations/sync | `annotation comment collab~...` | 他人批注只读：非作者的 upsert/delete 被服务端静默跳过，CLI 写后会重读校验并报错 |
+| POST | /collections/{root}/papers/{id}/actions/reprocess | `reprocess collab~...` | 走协作任务管线 |
+| POST | /collections/{root}/papers/{id}/import-private | （网页端） | 论文 owner 把私有批注/笔记/tags 拷入协作空间（uuid5 幂等） |
+
+无协作等价端点的只读命令（`fulltext`/`summary`/`deep`/`assets`/`attribute-tree`/screenshots GET）
+在 collab ID 下自动降级到底层 paper ID 的私有读端点（服务端已放行协作可见成员）；
+`delete` 和 screenshots 生成对 collab ID 直接报 USAGE_ERROR。
 
 ## 文件夹端点
 

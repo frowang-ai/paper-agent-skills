@@ -127,6 +127,28 @@ paper-agent library note list P-3a
 paper-agent library note add P-3a "Check the robustness table"
 ```
 
+### 协作副本（collab）
+
+协作收藏夹里的论文是独立副本：`library collection items` 返回的 `papers[].paper_id`
+形如 `collab~<collection_key>~<paper_id>`。把这种 scoped ID 原样传给任何 paper 级命令，
+CLI 会自动路由到协作端点，读写落在**共享副本**上（全成员可见、带作者归属），不会误写
+私有库：
+
+```bash
+paper-agent library note list "collab~C-key~<uuid>"
+paper-agent library note add "collab~C-key~<uuid>" "数据部分的疑点"
+paper-agent library annotation list "collab~C-key~<uuid>"
+```
+
+规则与边界：
+- 想让协作者看到笔记/讨论时，必须用 collab~ ID；用 P-xxx 或裸 UUID 写的是自己的私有副本。
+- 协作 notes 全成员可见；`note add` 走 JSON body（CLI 自动处理）。
+- 协作 annotations 返回全量快照（所有成员），不支持 `--since`；他人批注只读——
+  `annotation comment` 只能追加到自己创建的批注上，否则 CLI 会报错。
+- 只读命令（fulltext/summary/deep/assets/attribute-tree/screenshots 查询）自动降级到底层
+  论文的私有读端点；`delete`、screenshots 生成对协作副本直接报错。
+- 私有笔记/批注要搬进协作空间，由论文 owner 在网页端用 import-private（CLI 不暴露）。
+
 删除和重新处理会改变远程状态。Agent 必须先说明目标论文并取得用户确认，再执行
 `delete` 或 `reprocess`。
 
@@ -150,6 +172,8 @@ paper-agent library annotation comment P-3a ann-xxxx "Agent: 该方法与 Table 
 - `comment` 是追加语义，绝不覆盖用户已写的批注内容。
 - 不通过 `sync` 端点批量 upsert 新批注或删除批注——那是用户客户端的职责。
 - 批注 id 是客户端生成的 UUID，只能从 `annotation list` 结果中获取。
+- 协作副本（collab~ ID）的批注列表是全成员共享快照；给他人批注追加评论会被服务端
+  静默跳过，CLI 会重读校验并报错，此时请改用协作 note 发起讨论。
 
 ## 管理 Collection
 
@@ -187,7 +211,7 @@ JWT 只能作为当前命令参数使用，不得写入项目文件、Skill 文�
 |---|---|
 | `AUTH_MISSING` | 引导用户运行 `config init` 并配置 Key |
 | `AUTH_INVALID` | 停止重试，要求用户检查或更新 Key |
-| `NOT_FOUND` | 重新搜索或核对 short ID |
+| `NOT_FOUND` | 重新搜索或核对 short ID；协作收藏夹里的论文请改用 `collection items` 返回的 `collab~` ID |
 | `NOT_READY` | 论文仍在处理，稍后再次查询 |
 | `NETWORK_ERROR` | 可在短暂等待后有限重试 |
 | `REMOTE_ERROR` | 查看 `retryable`；不可重试时报告服务端错误 |
