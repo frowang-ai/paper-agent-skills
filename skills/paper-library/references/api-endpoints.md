@@ -93,13 +93,49 @@ scoped ID，并路由到 workspace 端点 `/collections/{root_key}/papers/{paper
 | POST | /collections/{root}/papers/{id}/notes | `note add collab~...` | **content 走 JSON body** `{"content": ...}` |
 | PATCH/DELETE | /collections/{root}/papers/{id}/notes/{note_id} | （网页端） | 改/软删笔记 |
 | GET | /collections/{root}/papers/{id}/annotations | `annotation list collab~...` | 全量快照（含 tombstone），不支持 `since` |
+| POST | /collections/{root}/papers/{id}/annotations/locate | `annotation locate collab~...` | 原文定位，只读 |
+| POST | /collections/{root}/papers/{id}/annotations | `annotation add collab~...` | 当前用户署名，按原文创建高亮/下划线 |
 | POST | /collections/{root}/papers/{id}/annotations/sync | `annotation comment collab~...` | 他人批注只读：非作者的 upsert/delete 被服务端静默跳过，CLI 写后会重读校验并报错 |
 | POST | /collections/{root}/papers/{id}/actions/reprocess | `reprocess collab~...` | 走协作任务管线 |
 | POST | /collections/{root}/papers/{id}/import-private | （网页端） | 论文 owner 把私有批注/笔记/tags 拷入协作空间（uuid5 幂等） |
 
 无协作等价端点的只读命令（`fulltext`/`summary`/`deep`/`assets`/`attribute-tree`/screenshots GET）
 在 collab ID 下自动降级到底层 paper ID 的私有读端点（服务端已放行协作可见成员）；
-`delete` 和 screenshots 生成对 collab ID 直接报 USAGE_ERROR。
+  `delete` 和 screenshots 生成对 collab ID 直接报 USAGE_ERROR。
+
+### 按原文创建 PDF 批注
+
+私人路径为 `POST /papers/{id}/annotations/locate` 和 `POST /papers/{id}/annotations`，
+协作路径在上表中。两者均使用当前用户认证；`locate` 不写批注。
+
+定位 JSON：`quote`（必填，1–8000 字符），可选 `page`（从 1 开始的 PDF 物理页码）、
+`prefix`、`suffix`（各不超过 1000 字符）。返回 `revision`、`count`、`candidates`；
+每个候选包含 `targetId`、原文和上下文、`precision`、`segments`。每段提供
+`page`、`pageIndex`（从 0 开始）、`rects` 和 `text`。坐标为阅读器未缩放页面左上角坐标。
+
+创建 JSON 在定位字段上增加：必填 `request_id`（1–128 字符），可选 `target_id`、
+`revision`、`type`（highlight/underline）、`color`（六位 HEX）、`comment`、`allow_coarse`。
+返回 `annotations`、`groupId` 和 `replayed`；CLI 另返回 `request_id`。
+跨页拆成多条记录，定位原文、上下文、内容版本、精度及请求摘要保存在 `anchor` 中。
+相同用户和副本下重试同一 request_id 会返回已有记录（包括删除状态），不会覆盖用户编辑；
+同一 ID 换内容返回 409 `IDEMPOTENCY_CONFLICT`。
+
+定位使用 NFKC（含连字展开）、空白折叠和行末断词归一化，不做模糊猜测。
+`add` 对无匹配返回 404 `QUOTE_NOT_FOUND`，多处匹配返回 409 `AMBIGUOUS_QUOTE`
+及候选，版本/候选变化返回 409 `TARGET_CHANGED`，仅有 OCR 块坐标时返回
+409 `COARSE_LOCATION`（显式 allow_coarse 后可创建）。CLI 在 `error.details.remote_code`
+保留这些原因，并透传 `candidates` / `revision`。超出 50 处匹配需补充上下文；
+PDF 上限 128 MiB，layout 上限 64 MiB。无原生文字的页可利用已有 MinerU layout 定位。
+
+上线顺序：后端安装 pyproject/uv.lock 中的 PyMuPDF；运行后端
+`database/scripts/migrate_annotation_anchors.py` 检查，再加 `--apply` 为
+`t_annotations` 增加可空 `anchor_json` 列；发布后端后再发布 CLI/Skill 和前端。
+协作批注沿用已有 JSON payload，无需新增协作表。旧 sync 请求不会清除服务端 anchor。
+前端可见的活动论文每 5 秒拉取更新，私人轮询只读，不重复推送旧本地快照。
+
+验证入口：后端 `python -m pytest api/paper/test_annotation_quotes.py api/paper/test_collection_workspace.py`；
+CLI `python -m pytest tests/test_annotation_create.py tests/_test_annotations.py tests/_test_phase2_frowang_client.py`；
+前端 `node --test tests/test_annotation_agent_sync.mjs`。
 
 ### 协作关系管理（0.9.4+，`library collab` 命令组）
 

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
+import json
+import re
 from typing import Any, Iterable, Optional
 from urllib.parse import quote
 
@@ -402,6 +405,52 @@ class LibraryService:
                     exit_code=ExitCode.NETWORK_OR_REMOTE,
                     details={"paper_id": paper_id, "annotation_id": annotation_id},
                 )
+        return result
+
+    def locate_annotation(self, paper_id: str, *, quote: str, page: Optional[int] = None,
+                          prefix: Optional[str] = None, suffix: Optional[str] = None) -> Any:
+        body = self._annotation_quote(quote, page, prefix, suffix)
+        return _unwrap(self.client.request_json("POST", f"{paper_base(paper_id)}/annotations/locate", json_body=body))
+
+    @staticmethod
+    def _annotation_quote(quote, page, prefix, suffix):
+        if not quote.strip() or len(quote.strip()) > 8000:
+            raise _usage("quote must contain 1–8000 characters")
+        if page is not None and page < 1:
+            raise _usage("page must be a one-based PDF physical page number")
+        if any(value is not None and len(value.strip()) > 1000 for value in (prefix, suffix)):
+            raise _usage("prefix and suffix must be at most 1000 characters")
+        return {"quote": quote.strip(), "page": page, "prefix": prefix.strip() if prefix else None,
+                "suffix": suffix.strip() if suffix else None}
+
+    def add_annotation(self, paper_id: str, *, quote: str, page: Optional[int] = None,
+                       prefix: Optional[str] = None, suffix: Optional[str] = None,
+                       target_id: Optional[str] = None, revision: Optional[str] = None,
+                       type: str = "highlight", color: str = "#ffd400", comment: str = "",
+                       request_id: Optional[str] = None, allow_coarse: bool = False) -> Any:
+        body = self._annotation_quote(quote, page, prefix, suffix)
+        if type not in {"highlight", "underline"}:
+            raise _usage("type must be highlight or underline")
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+            raise _usage("color must be a six-digit HEX color, e.g. #ffd400")
+        if len(comment) > 20000:
+            raise _usage("comment must be at most 20000 characters")
+        for name, value in (("target_id", target_id), ("revision", revision)):
+            if value is not None and not re.fullmatch(r"[0-9a-f]{64}", value):
+                raise _usage(f"{name} must be the value returned by annotation locate")
+        body.update(target_id=target_id, revision=revision, type=type, color=color,
+                    comment=comment.strip(), allow_coarse=allow_coarse)
+        # Same command is safe to retry even when the response was lost. Explicit
+        # request IDs allow intentionally creating another annotation of the same quote.
+        if request_id is None:
+            request_id = hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False,
+                                                   separators=(",", ":")).encode("utf-8")).hexdigest()
+        if not request_id.strip() or len(request_id.strip()) > 128:
+            raise _usage("request_id must contain 1–128 characters")
+        body["request_id"] = request_id.strip()
+        result = _unwrap(self.client.request_json("POST", f"{paper_base(paper_id)}/annotations", json_body=body))
+        if isinstance(result, dict):
+            result = {**result, "request_id": request_id}
         return result
 
     def list_collections(self) -> Any:

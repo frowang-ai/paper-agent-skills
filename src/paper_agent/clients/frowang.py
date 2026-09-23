@@ -309,6 +309,8 @@ class FrowangClient:
                 "method": method,
                 "path": path,
                 "remote_code": remote_code,
+                **({key: detail[key] for key in ("candidates", "revision") if key in detail}
+                   if isinstance(detail, dict) else {}),
             },
             retryable=status == 429 or status >= 500,
         )

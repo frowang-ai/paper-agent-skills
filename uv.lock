@@ -149,7 +149,7 @@ wheels = [
 
 [[package]]
 name = "paper-agent-skills"
-version = "0.9.3"
+version = "0.9.5"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

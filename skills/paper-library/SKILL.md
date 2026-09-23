@@ -179,7 +179,7 @@ paper-agent library collab pending-summary        # 我名下所有协作空间�
 ## PDF 批注
 
 批注是用户在网页端 PDF 阅读器上做的高亮/笔记，按 `pageIndex + rects` 定位。
-Agent 只做读和 comment 追加，不创建带坐标的新高亮：
+Agent 可按原文创建高亮或下划线，由服务端计算坐标；也可读取和追加 comment：
 
 ```bash
 # 查看某篇论文的全部批注（含 text 选中文本和 comment）
@@ -190,12 +190,29 @@ paper-agent library annotation list P-3a --since 2026-08-01T00:00:00.000000
 
 # 向已有批注追加评论（换行拼接，不覆盖用户原有 comment）
 paper-agent library annotation comment P-3a ann-xxxx "Agent: 该方法与 Table 3 的结果矛盾"
+
+# 按原文创建；--page 是 PDF 物理页码，从 1 开始，不是文内印刷页码
+paper-agent library annotation add P-3a --quote "Exact original sentence" --page 5 --comment "关键识别假设"
+
+# 多处匹配时先定位，检查各候选的页码、前后文、precision，再选 targetId
+paper-agent library annotation locate P-3a --quote "Exact original sentence"
+paper-agent library annotation add P-3a --quote "Exact original sentence" --target-id TARGET_ID --revision REVISION --type underline
 ```
 
 约束：
+- `--quote` 必须引用论文原文，不用概括、翻译或省略号替代；可用 `--prefix` / `--suffix` 消歧。
+- `locate` 不写数据。无匹配返回空候选；`add` 无匹配或有歧义时不创建，检查
+  `error.details.remote_code`（`QUOTE_NOT_FOUND` / `AMBIGUOUS_QUOTE`）及候选后再操作。
+- `precision=character` 使用 PDF 字符边界；扫描页可能只有 `span` 范围。只有用户接受
+  OCR 块级标注时才加 `--allow-coarse`，不要把块级结果描述为精确选词。
+- 默认请求 ID 由请求内容生成，同一命令可安全重试。`--request-id` 可显式指定；失败重试复用
+  同一个 ID，不改内容；想另外创建相同批注时换 ID。重试不会恢复已删除批注或覆盖后来编辑。
+- `--target-id` / `--revision` 来自同一次 `locate`，返回 `TARGET_CHANGED` 时重新定位。
+- 一段原文跨页时返回多个批注，共享 `anchor.groupId`。`source=agent`；网页打开时会定时拉取。
+- 私人与 `collab~` 副本都支持 `locate/add`，协作批注归当前 API Key 用户所有。
 - `comment` 是追加语义，绝不覆盖用户已写的批注内容。
 - 不通过 `sync` 端点批量 upsert 新批注或删除批注——那是用户客户端的职责。
-- 批注 id 是客户端生成的 UUID，只能从 `annotation list` 结果中获取。
+- 批注 ID 从 `annotation add` 或 `annotation list` 结果中获取，不能自行猜测。
 - 协作副本（collab~ ID）的批注列表是全成员共享快照；给他人批注追加评论会被服务端
   静默跳过，CLI 会重读校验并报错，此时请改用协作 note 发起讨论。
 

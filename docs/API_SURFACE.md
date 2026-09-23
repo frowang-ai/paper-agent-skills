@@ -66,6 +66,8 @@
 | `GET /collections/{root}/papers/{id}/notes` | `note list collab~...` | ✅ |
 | `POST /collections/{root}/papers/{id}/notes`（JSON body） | `note add collab~...` | ✅ |
 | `GET /collections/{root}/papers/{id}/annotations` | `annotation list collab~...`（全量快照，无 `--since`） | ✅ |
+| `POST /papers/{id}/annotations/locate`、`POST /collections/{root}/papers/{id}/annotations/locate` | `annotation locate`（原文定位，只读） | ✅ |
+| `POST /papers/{id}/annotations`、`POST /collections/{root}/papers/{id}/annotations` | `annotation add`（按原文创建，幂等） | ✅ |
 | `POST /collections/{root}/papers/{id}/annotations/sync` | `annotation comment collab~...`（他人批注只读，CLI 写后重读校验） | ✅ |
 | `POST /collections/{root}/papers/{id}/actions/reprocess` | `reprocess collab~...` | ✅ |
 | 无协作等价端点 | `fulltext`/`summary`/`deep`/`assets`/`attribute-tree`/screenshots GET | ✅ 降级底层 paper 私有读端点 |

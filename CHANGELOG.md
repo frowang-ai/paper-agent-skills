@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] - 2026-09-24
+
+### Added
+
+- **Quote Annotations**: `library annotation locate` and `library annotation add` create PDF
+  highlights or underlines from original text in private and collaborative papers. The server
+  resolves coordinates; callers can select an ambiguous candidate, pin the document revision,
+  and explicitly accept coarse OCR locations. Stable request IDs prevent duplicate annotations
+  when retrying the same command.
+
 ## [0.9.4] - 2026-09-23
 
 ### Added

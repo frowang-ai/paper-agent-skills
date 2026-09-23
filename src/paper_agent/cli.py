@@ -1169,6 +1169,51 @@ def library_annotation_list(
     )
 
 
+@library_annotation_app.command("locate")
+def library_annotation_locate(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument(help="Paper ID or collab~ scoped ID.")],
+    quote: Annotated[str, typer.Option("--quote", help="Exact original text to locate.")],
+    page: Annotated[Optional[int], typer.Option("--page", min=1, help="PDF physical page (one-based).")]=None,
+    prefix: Annotated[Optional[str], typer.Option("--prefix", help="Text immediately before the quote.")]=None,
+    suffix: Annotated[Optional[str], typer.Option("--suffix", help="Text immediately after the quote.")]=None,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Locate original text without creating an annotation; return candidates and precision."""
+    _ACTIVE_COMMAND.set("library.annotation.locate")
+    data = _library_service(ctx).locate_annotation(paper_id, quote=quote, page=page, prefix=prefix, suffix=suffix)
+    _library_success("library.annotation.locate", data, json_output=json_output, human=human)
+
+
+@library_annotation_app.command("add")
+def library_annotation_add(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument(help="Paper ID or collab~ scoped ID.")],
+    quote: Annotated[str, typer.Option("--quote", help="Exact original text to annotate.")],
+    page: Annotated[Optional[int], typer.Option("--page", min=1, help="PDF physical page (one-based).")]=None,
+    prefix: Annotated[Optional[str], typer.Option("--prefix")]=None,
+    suffix: Annotated[Optional[str], typer.Option("--suffix")]=None,
+    target_id: Annotated[Optional[str], typer.Option("--target-id", help="Candidate targetId from locate.")]=None,
+    revision: Annotated[Optional[str], typer.Option("--revision", help="Revision returned by locate.")]=None,
+    annotation_type: Annotated[str, typer.Option("--type", help="highlight or underline.")]="highlight",
+    color: Annotated[str, typer.Option("--color", help="Six-digit HEX color.")]="#ffd400",
+    comment: Annotated[str, typer.Option("--comment")]="",
+    request_id: Annotated[Optional[str], typer.Option("--request-id", help="Reuse for retries; defaults to a hash of the request.")]=None,
+    allow_coarse: Annotated[bool, typer.Option("--allow-coarse", help="Accept OCR span bounds instead of precise character bounds.")]=False,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Create highlights/underlines from quoted text; coordinates are computed by the server."""
+    _ACTIVE_COMMAND.set("library.annotation.add")
+    data = _library_service(ctx).add_annotation(
+        paper_id, quote=quote, page=page, prefix=prefix, suffix=suffix, target_id=target_id,
+        revision=revision, type=annotation_type, color=color, comment=comment,
+        request_id=request_id, allow_coarse=allow_coarse,
+    )
+    _library_success("library.annotation.add", data, json_output=json_output, human=human)
+
+
 @library_annotation_app.command("comment")
 def library_annotation_comment(
     ctx: typer.Context,
