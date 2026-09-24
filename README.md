@@ -1,6 +1,6 @@
 # Paper Agent Skills
 
-> **Alpha/MVP** - 核心功能已完成，正在准备首次公开发布。
+> **Beta** — 已发布到 PyPI，要求 Python 3.13+。
 
 Paper Agent 是 Frowang 论文研究工作流的共享 Python 运行时和 Skill 权威源码。Codex、
 Claude Code 或人类用户通过稳定的 `paper-agent` CLI 管理远程论文库、Zotero 导入、全局
@@ -52,6 +52,13 @@ JSON envelope。自动化脚本可显式传入 `--json`，人工排查也可用 
 
 ```powershell
 uv tool install paper-agent-skills
+```
+
+升级运行时后，同步更新已安装的 Skills：
+
+```powershell
+uv tool install paper-agent-skills --upgrade
+paper-agent skills update --platform all
 ```
 
 ### 从源码安装
@@ -153,6 +160,8 @@ paper-agent library fulltext P-1 --save ./papers/P-1/full.md
 paper-agent library assets P-1
 paper-agent library tag add P-1 causal
 paper-agent library note add P-1 "Review Table 2"
+paper-agent library annotation locate P-1 --quote "Exact original sentence from the PDF" --page 1
+paper-agent library annotation add P-1 --quote "Exact original sentence from the PDF" --page 1 --type highlight --comment "关键论点"
 ```
 
 服务器检索用于 L1 元数据和 L2 属性树上的候选论文发现。选中的 `full.md` 和
