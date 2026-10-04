@@ -132,3 +132,20 @@ def test_download_asset_normalizes_backend_root_outputs_path(tmp_path: Path) -> 
         client.download_asset("/outputs/task-1/layout.json", tmp_path / "layout.json")
 
     assert seen_path == "/paper-api/outputs/task-1/layout.json"
+
+
+@pytest.mark.parametrize("status,code", [(401, ErrorCode.AUTH_INVALID), (403, ErrorCode.AUTH_INVALID), (404, ErrorCode.NOT_FOUND)])
+def test_download_maps_streamed_denials_and_preserves_existing_file(tmp_path: Path, status, code) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status, headers={"Content-Type": "application/json"},
+                              stream=httpx.ByteStream(b'{"detail":"asset denied"}'))
+
+    destination = tmp_path / "paper.pdf"
+    destination.write_bytes(b"existing local file")
+    with _client(handler) as client, pytest.raises(CommandError) as caught:
+        client.download_asset("/uploads/private.pdf", destination)
+
+    assert caught.value.code == code
+    assert caught.value.details["status_code"] == status
+    assert destination.read_bytes() == b"existing local file"
+    assert list(tmp_path.glob(".*.tmp")) == []

@@ -410,6 +410,7 @@ class FrowangClient:
             target.parent.mkdir(parents=True, exist_ok=True)
             with self._client.stream("GET", url, headers=self._headers()) as response:
                 if response.status_code >= 400:
+                    response.read()  # Error decoding needs the body of a streamed response.
                     raise self._http_error(response, method="GET", path=urlsplit(url).path)
                 with temporary.open("wb") as handle:
                     for chunk in response.iter_bytes():
