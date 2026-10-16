@@ -8,18 +8,29 @@ not_for: "模块级实现细节、历史叙事或完整架构设计"
 
 # Current Status
 
+Last verified: `2026-10-04`
+
 ## Current Focus
 
-- 当前开发版本为 `0.9.2`（在 `0.9.1` 基础上）：新增 PyPI 更新检查（`paper-agent update check`、
-  doctor `update` 项，24h 缓存可关闭），放宽 Agent 代配 Frowang Key 的 Skill 措辞
-  （DEC-021/022）。
+- **资源鉴权兼容已实测，流式下载拒绝补丁尚待发布（2026-10-04）**：已安装 PyPI 0.9.5 使用 API Key、无浏览器 Cookie，真实 list/assets/fulltext/summary/PDF/layout 读取均通过。`main` 的 `87a1f65` 修复下载遭 401/403/404 时未读取流式错误体导致的堆栈；相关 22 项回归和真实源码 CLI 拒绝路径通过。**版本未变、未发 PyPI、用户现有安装未被替换**；正常授权读取不受影响，旧版的错误提示仍未修好。证据与边界见 [本次历史记录](HISTORY.md#asset-auth-20261004)。
+
+- 当前已发布版本为 **`0.9.5`**：GitHub tag `v0.9.5` 指向 `b839151`，wheel 与 sdist 已发布
+  [PyPI](https://pypi.org/project/paper-agent-skills/0.9.5/)，本机已从 PyPI 重装并确认更新检查返回 0.9.5。
+- `library annotation locate/add` 已上线：Agent 引用原文，服务端定位 PDF 坐标并创建高亮或下划线；
+  支持私有与协作作用域、候选消歧、revision 和幂等重试。真实私有论文创建/回读通过，用户已确认收到效果。
 - 统一运行时 Phase 1 至 Phase 5 已完成：配置/协议、远程论文库、Zotero、Skill 分发、
   Global Artifact Store、项目 workspace 和本地 `rg` 深读主流程均已落地。
-- 当前焦点转向 Phase 6：真实服务器 QA、图片/PDF complete profile、页码定位和缓存治理。
+- Phase 6 仍包括更广泛的真实服务器 QA、图片/PDF complete profile、项目阅读导航和缓存治理；
+  本次完成远程原文到 PDF 页码/坐标的定位，不代表 complete profile 已实现。
 - Phase 5 当前只实现 text profile；图片引用和 source PDF 不会被伪装为已离线同步。
 
 ## Done（最近里程碑）
 
+- [x] 2026-09-24：0.9.5 原文批注能力、Skill/README/API surface 与 capabilities 清单同步发布。
+  160 项测试、Windows Python 3.13 干净 wheel 安装、Skill/Plugin 校验及 PyPI 文件 SHA-256 对照通过；
+  详见 [发布历史](HISTORY.md)。
+- [x] 0.9.3 / 0.9.4 已补齐 `collab~` 论文副本路由与协作关系管理命令，0.9.5 保留这些能力；
+  参数和作用域边界见 [API surface](../docs/API_SURFACE.md)。
 - [x] Python 3.13+ Runtime、统一配置、凭据和 JSON CLI 合同。
 - [x] Frowang Library 与 Zotero Import 生产模块。
 - [x] Codex/Claude standalone installer 与双平台 Plugin。
@@ -42,14 +53,16 @@ not_for: "模块级实现细节、历史叙事或完整架构设计"
 
 ## In Progress
 
-- [ ] 在 QA automation 中使用部署服务器验证真实 assets 响应、NOT_READY 和 revision 更新。
+- [ ] 补充 NOT_READY 与 revision 更新场景；2026-10-04 已完成真实 assets 与授权文件下载验收，不能代替其余 Phase 6 范围。
 - [ ] 设计 complete profile 的图片/PDF资产清单，优先推动服务端 artifact manifest。
-- [ ] 增加 layout 命中位置到 PDF 页码的定位助手。
+- [ ] 完善项目本地 layout 命中到 PDF 的阅读导航；远程原文定位已通过 `annotation locate` 提供。
 - [ ] 将 `paper-agent-setup` 推送到公开 GitHub，并完成干净 Windows/macOS/Linux Agent 安装 E2E。
 
 ## Backlog
 
-- P1：真实账号端到端 QA 和跨平台用户验收。
+- **发布 `87a1f65` 流式下载错误处理补丁并验证安装包**：源码已提交推送，但 PyPI 仍为 0.9.5；不要混入工作树内尚未发布的 assistantAPI 改动，也不要把直接运行修复源码当成安装版已升级。
+
+- P1：扩展扫描件、跨页、协作多人真实账号 QA，以及 macOS/Linux 安装验收；本轮线上实测为私有论文跨行高亮。
 - P1：cache status/verify/gc 公共命令与 workspace doctor。
 - P1：图片/PDF complete profile 和 Markdown 图片引用处理。
 - P2：revision pin、离线操作增强和结构化日志。

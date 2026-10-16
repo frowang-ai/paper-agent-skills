@@ -81,6 +81,11 @@ not_for: "完整目录树、全量 API、术语定义或当前状态"
 - 入口：`src/paper_agent/services/library_service.py`
 - CLI 适配：`src/paper_agent/cli.py`
 
+### PDF 原文批注
+
+- 应用服务：`src/paper_agent/services/library_service.py` 的 `locate_annotation` / `add_annotation`。
+- CLI：`src/paper_agent/cli.py` 的 `library annotation locate/add`；回归见 `tests/test_annotation_create.py`。
+
 ### Agent API Surface 合同
 
 - 入口：`docs/API_SURFACE.md`

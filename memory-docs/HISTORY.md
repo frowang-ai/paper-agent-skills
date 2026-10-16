@@ -165,3 +165,65 @@ Plugin/SkillSource 合同测试同步纳入这些文件，避免元数据只存�
 并发发布清理已删除旧 `paper_cli.py` 与 `zotero_upload_cli.py` wrapper；本次同步移除 3 条失效
 兼容测试和 pytest 的旧 scripts 路径。当前全量 88 项测试通过，两个新增元数据 Skill 均通过
 `quick_validate.py`。
+
+## 2026-09-24：原文批注闭环与 0.9.5 正式发布
+
+此前 Agent 可以读取 PDF 批注和追加评论，却无法创建新的划线。缺口在于原文到 PDF
+几何位置的转换，因此本轮把坐标定位留在持有原始 PDF 的网站后端：CLI 发送原文、页码
+和上下文，后端返回候选，再创建高亮或下划线。Runtime 保持 HTTP 与工作流职责，不在
+客户端引入另一套 PDF 解析实现。
+
+0.9.5 新增 `library annotation locate/add`，复用 0.9.3 的私有/协作 scoped ID 路由；
+通过稳定请求 ID 支持安全重试，通过候选和 revision 避免歧义及旧位置误写。
+0.9.4 的协作关系管理能力继续保留。Skill、API surface、README 和 capabilities 清单
+同步更新，公开用法及限制以 [Skill](../skills/paper-library/SKILL.md) 为准。
+
+### 发布事实
+
+- 功能提交 `ffcca7f`；发布说明与命令清单补充提交 `b839151`，均已推送 `main`。
+- [GitHub tag v0.9.5](https://github.com/frowang-ai/paper-agent-skills/tree/v0.9.5)
+  指向 `b839151`；[PyPI 0.9.5](https://pypi.org/project/paper-agent-skills/0.9.5/)
+  的 wheel 与 sdist 上传成功，官方 JSON 中两份 SHA-256 均与已验收的本地包一致。
+- 配套网站已部署后端 `931bc74` / 前端 `82f390f`。通过现有 API Key 对真实私有论文
+  完成定位、跨行高亮创建、同请求重试及独立回读；重试为 `replayed=true`，没有重复记录。
+  用户确认已收到效果。生产迁移和浏览器排障细节由 website 项目的
+  `docs/ops/20260924_agent_quote_annotations_deploy.md` 维护，不在本公开仓库记录私有论文身份或凭据。
+- 本机随后从 PyPI 重新安装同版本，确认不再引用本地 wheel；新命令可发现，
+  Codex/Claude 已安装 Skills 与发布包一致，`update check --refresh` 返回 current/latest 均为 0.9.5。
+
+### 验证与环境限制
+
+160 项已跟踪测试全部通过，Ruff、`uv lock --check`、`uv build` 和 Twine 包元数据检查通过。
+全新的 Windows Python 3.13 环境安装实际 wheel，验证了配置初始化幂等、假凭据
+set/status/delete、离线 doctor、未知命令错误，以及从 wheel 自动发现 canonical Skills。
+双平台 project-scope 安装与 Plugin 打包通过；源码、wheel 和 Plugin 的 Skill 文件 hash
+一致，Codex 与 Claude 原生 Plugin validator 均通过。包内容检查未发现论文、凭据、缓存或日志。
+
+首次全量运行的唯一失败是 Windows GBK 解码 UTF-8 CLI 帮助输出；设置 `PYTHONUTF8=1`
+后全量重跑通过，没有为此修改产品行为。本机既有 `twine.exe` 启动器失效，实际检查与上传
+通过 `uvx --from twine twine` 执行。发布凭据来自既有配置，未进入命令参数、日志或仓库。
+macOS/Linux 干净安装及扫描件、跨页、多人协作的生产验收没有被本次 Windows/私有论文结果替代。
+
+升级已安装 Runtime 与 Skills：
+
+```bash
+uv tool install paper-agent-skills --upgrade
+paper-agent skills update --platform all
+```
+
+发布操作清单继续由 [RELEASE_CHECKLIST](../docs/RELEASE_CHECKLIST.md) 维护；本记录描述
+已执行的结果，不把本地发布探针添加为新的长期测试或发布基础设施。
+
+<a id="asset-auth-20261004"></a>
+
+## 2026-10-04：网站资源鉴权兼容验收与流式下载拒绝修复（未发 PyPI）
+
+网站将 PDF/截图从公开入口改为受控资源后，使用真正已安装的 0.9.5 CLI 和既有 API Key，验证了 library list、assets、fulltext --save、summary --save、PDF 与 layout.json 的 download-asset。CLI 无浏览器 Cookie，仍通过 X-API-Key 和同源路径规范化读取；没有把浏览器 HttpOnly Cookie 变成外部 Agent 的前置条件。全文、摘要、PDF、layout 的实测文件大小分别为 161,200、10,003、3,713,630、961,860 字节。测试数据/缓存置于隔离目录，未修改用户论文或全局已安装 Runtime。
+
+负向跨账号下载由服务端正确拒绝（404、不落文件），但 0.9.5 的 download_asset 在流式 Response 尚未 read 时直接解 JSON，导致 ResponseNotRead，而非稳定 JSON envelope。新增 401/403/404 的 ByteStream 用例先全部复现失败；错误分支增加一行 response.read() 后，既有错误码映射正常、成功流式路径不变、已有目标文件保留、临时文件不残留。
+
+修复与三项参数化测试已在 **`87a1f65`** 提交推送。client/service/CLI 相关 22 项回归通过，干净隔离候选 client 14 项通过；修复源码在真实拒绝请求上返回 NOT_FOUND/404 JSON、exit 4。Paseo Kimi 只读审核通过，未混入另一任务的 assistantAPI 修改。
+
+**这不是新版本发布记录**：版本号未变、未发 PyPI，也未升级用户已安装 0.9.5。正常授权读取已通过；用户安装版的拒绝错误格式需后续发布才修复。另一个 Typer 通用异常处理兼容现象未在此一行补丁中扩修，不据此宣称整个 CLI 异常分支均已重验。
+
+跨仓完整生产证据由 website 的 `docs/ops/20261004_asset_access_auth_deploy.md` 维护；本公开 SDK 仓库不记录凭据、私有论文身份或下载正文。后续发布沿用 [RELEASE_CHECKLIST](../docs/RELEASE_CHECKLIST.md)。

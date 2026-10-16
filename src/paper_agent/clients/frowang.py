@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, Iterator, Mapping, Optional
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -227,6 +228,219 @@ class FrowangClient:
             return payload
 
         raise AssertionError("request loop exhausted")
+
+    def stream_json_events(
+        self,
+        method: str,
+        path: str,
+        *,
+        json_body: Any = None,
+        timeout_seconds: Optional[float] = None,
+        max_event_bytes: int = 1_048_576,
+    ) -> Iterator[dict[str, Any]]:
+        """Yield JSON objects from a Server-Sent Events response.
+
+        The response is consumed line by line.  A single event is bounded so
+        an upstream that forgets the SSE delimiter cannot grow an in-memory
+        buffer without limit.
+        """
+        method = method.upper()
+        url = self._api_url(path)
+        if max_event_bytes <= 0:
+            raise ValueError("max_event_bytes must be positive")
+        request_options: dict[str, Any] = {
+            "headers": {
+                **self._headers(),
+                "Accept": "text/event-stream",
+                "Content-Type": "application/json",
+            },
+            "json": json_body,
+        }
+        if timeout_seconds is not None:
+            request_options["timeout"] = timeout_seconds
+
+        try:
+            with self._client.stream(method, url, **request_options) as response:
+                if response.status_code >= 400:
+                    response.read()
+                    raise self._http_error(response, method=method, path=path)
+                content_type = response.headers.get("content-type", "")
+                if content_type.split(";", 1)[0].strip().lower() != "text/event-stream":
+                    raise CommandError(
+                        code=ErrorCode.REMOTE_ERROR,
+                        message="Frowang assistant response was not an SSE stream",
+                        exit_code=ExitCode.NETWORK_OR_REMOTE,
+                        details={"method": method, "path": path, "content_type": content_type},
+                    )
+
+                event_data = bytearray()
+                pending_line = bytearray()
+                saw_done = False
+
+                def flush_event() -> Optional[dict[str, Any]]:
+                    nonlocal event_data, saw_done
+                    if not event_data:
+                        return None
+                    payload_bytes = bytes(event_data)
+                    event_data.clear()
+                    if payload_bytes == b"[DONE]":
+                        saw_done = True
+                        return None
+                    try:
+                        payload = payload_bytes.decode("utf-8")
+                        decoded = json.loads(payload)
+                    except (UnicodeDecodeError, ValueError) as exc:
+                        raise CommandError(
+                            code=ErrorCode.REMOTE_ERROR,
+                            message="Frowang returned an invalid SSE JSON event",
+                            exit_code=ExitCode.NETWORK_OR_REMOTE,
+                            details={"method": method, "path": path},
+                        ) from exc
+                    if not isinstance(decoded, dict):
+                        raise CommandError(
+                            code=ErrorCode.REMOTE_ERROR,
+                            message="Frowang returned an unexpected SSE event",
+                            exit_code=ExitCode.NETWORK_OR_REMOTE,
+                            details={"method": method, "path": path},
+                        )
+                    return decoded
+
+                def process_line(line_bytes: bytes) -> Optional[dict[str, Any]]:
+                    if line_bytes.endswith(b"\r"):
+                        line_bytes = line_bytes[:-1]
+                    if not line_bytes:
+                        return flush_event()
+                    if line_bytes.startswith(b":") or not line_bytes.startswith(b"data:"):
+                        return None
+                    data = line_bytes[5:].lstrip()
+                    extra = len(data) + (1 if event_data else 0)
+                    if len(event_data) + extra > max_event_bytes:
+                        raise CommandError(
+                            code=ErrorCode.REMOTE_ERROR,
+                            message="Frowang SSE event exceeded the client limit",
+                            exit_code=ExitCode.NETWORK_OR_REMOTE,
+                            details={"method": method, "path": path, "max_event_bytes": max_event_bytes},
+                        )
+                    if event_data:
+                        event_data.extend(b"\n")
+                    event_data.extend(data)
+                    return None
+
+                for chunk in response.iter_bytes():
+                    start = 0
+                    while start < len(chunk):
+                        newline = chunk.find(b"\n", start)
+                        if newline < 0:
+                            remaining = chunk[start:]
+                            if len(pending_line) + len(remaining) > max_event_bytes:
+                                raise CommandError(
+                                    code=ErrorCode.REMOTE_ERROR,
+                                    message="Frowang SSE line exceeded the client limit",
+                                    exit_code=ExitCode.NETWORK_OR_REMOTE,
+                                    details={"method": method, "path": path, "max_event_bytes": max_event_bytes},
+                                )
+                            pending_line.extend(remaining)
+                            break
+                        line = chunk[start:newline]
+                        if len(pending_line) + len(line) > max_event_bytes:
+                            raise CommandError(
+                                code=ErrorCode.REMOTE_ERROR,
+                                message="Frowang SSE line exceeded the client limit",
+                                exit_code=ExitCode.NETWORK_OR_REMOTE,
+                                details={"method": method, "path": path, "max_event_bytes": max_event_bytes},
+                            )
+                        pending_line.extend(line)
+                        event = process_line(bytes(pending_line))
+                        pending_line.clear()
+                        if event is not None:
+                            yield event
+                        if saw_done:
+                            return
+                        start = newline + 1
+
+                if pending_line:
+                    process_line(bytes(pending_line))
+                if not saw_done:
+                    raise CommandError(
+                        code=ErrorCode.NETWORK_ERROR,
+                        message="Frowang assistant SSE stream ended before [DONE]",
+                        exit_code=ExitCode.NETWORK_OR_REMOTE,
+                        details={"method": method, "path": path},
+                        retryable=True,
+                    )
+        except CommandError:
+            raise
+        except httpx.RequestError as exc:
+            raise _network_error(method, path, exc) from exc
+
+    def stream_agentic_chat(
+        self,
+        message: str,
+        *,
+        conversation_id: Optional[str] = None,
+        context: Optional[Mapping[str, Any]] = None,
+        timeout_seconds: Optional[float] = None,
+        max_event_bytes: int = 1_048_576,
+    ) -> Iterator[dict[str, Any]]:
+        """Start a unified assistant turn and yield its SSE events."""
+        if not message.strip():
+            raise CommandError(
+                code=ErrorCode.USAGE_ERROR,
+                message="Assistant message cannot be empty",
+                exit_code=ExitCode.USAGE_ERROR,
+            )
+        body = {
+            "message": message,
+            "conversation_id": conversation_id,
+            "context": dict(context) if context is not None else {},
+        }
+        return self.stream_json_events(
+            "POST",
+            "/chat/agentic",
+            json_body=body,
+            timeout_seconds=timeout_seconds,
+            max_event_bytes=max_event_bytes,
+        )
+
+    def retry_agentic_chat(
+        self,
+        conversation_id: str,
+        message_id: str,
+        *,
+        timeout_seconds: Optional[float] = None,
+        max_event_bytes: int = 1_048_576,
+    ) -> Iterator[dict[str, Any]]:
+        """Retry an assistant message and yield the same SSE event stream."""
+        return self.stream_json_events(
+            "POST",
+            f"/chat/conversations/{_quoted_segment(conversation_id)}/retry",
+            json_body={"message_id": message_id},
+            timeout_seconds=timeout_seconds,
+            max_event_bytes=max_event_bytes,
+        )
+
+    def list_chat_conversations(self, *, limit: Optional[int] = None) -> dict[str, Any]:
+        params = {"limit": limit} if limit is not None else None
+        return self.request_json("GET", "/chat/conversations", params=params)
+
+    def get_chat_history(self, conversation_id: str) -> dict[str, Any]:
+        return self.request_json(
+            "GET", f"/chat/conversations/{_quoted_segment(conversation_id)}/history"
+        )
+
+    def stop_chat_run(self, run_id: str) -> dict[str, Any]:
+        return self.request_json("POST", f"/chat/runs/{_quoted_segment(run_id)}/stop")
+
+    def delete_chat_conversation(self, conversation_id: str) -> dict[str, Any]:
+        return self.request_json(
+            "DELETE", f"/chat/conversations/{_quoted_segment(conversation_id)}"
+        )
+
+    def delete_chat_message(self, conversation_id: str, message_id: str) -> dict[str, Any]:
+        return self.request_json(
+            "DELETE",
+            f"/chat/conversations/{_quoted_segment(conversation_id)}/messages/{_quoted_segment(message_id)}",
+        )
 
     def request_jwt(
         self,

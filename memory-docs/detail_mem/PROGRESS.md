@@ -27,6 +27,23 @@ not_for: "长期架构理由、代码目录导航或项目历史"
   命令组和薄 `paper-library` Skill。
 - 入口：`src/paper_agent/clients/frowang.py`、`services/library_service.py`。
 - 搜索口径：默认 L1+L2 discovery；新论文不自动建立 L3。
+- 2026-10-04：网站资源鉴权升级后的真实 API Key 读取验证通过；流式拒绝错误体修复 `87a1f65` 已入 main、未发 PyPI，安装版 0.9.5 的正常读取与错误提示状态必须分开描述。详见 [验证记录](../HISTORY.md#asset-auth-20261004)。
+
+### Phase 2 补充：协作作用域与原文批注（0.9.3–0.9.5）
+
+- 状态：0.9.5 已于 2026-09-24 发布 PyPI，配套网站后端和阅读器已部署；真实私有论文
+  的定位、创建、重复请求与回读通过，用户已确认收到效果。
+- 能力：`library annotation locate` 返回页码、候选、revision 与精度；`annotation add`
+  按原文创建高亮或下划线，CLI 不自行估算 PDF 坐标。`capabilities` 已列出批注命令。
+- 作用域：普通 ID 写入自己的私有副本；`collab~<root>~<paper>` 通过既有 scoped 路由写入
+  协作副本，保留作者和权限边界。0.9.4 的 `library collab` 关系管理命令继续可用。
+- 约束：原文必须来自 PDF；页码是从 1 开始的物理页。歧义候选通过 target/revision 或上下文
+  选择，OCR span 需显式接受粗粒度。默认 request ID 由请求内容生成，重试不重复创建、
+  不覆盖后续编辑或恢复删除项。参数及错误结构由 [API surface](../../docs/API_SURFACE.md)
+  和 [Skill 参考](../../skills/paper-library/references/api-endpoints.md) 维护。
+- 验证入口：`tests/test_annotation_create.py`；配套发布检查见 `docs/RELEASE_CHECKLIST.md`。
+- 边界：本轮真实环境只验收私有原生 PDF 跨行高亮；扫描件、跨页和多人协作仍需更广泛
+  的生产样本验证。这不改变 workspace 目前仅有 text profile 的承诺。
 
 ### Phase 3：Zotero 导入
 

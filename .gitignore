@@ -53,3 +53,4 @@ trade_war_legal_protectionism.md
 # 覆盖率报告
 .coverage
 htmlcov/
+tmp/

@@ -38,6 +38,7 @@ from paper_agent.protocol import (
 from paper_agent.plugins import PluginBundleBuilder
 from paper_agent.services import (
     ArtifactSyncService,
+    AssistantService,
     LibraryService,
     SkillInstallService,
     UpdateCheckService,
@@ -58,6 +59,7 @@ app = typer.Typer(
 config_app = typer.Typer(help="Manage Paper Agent configuration.", no_args_is_help=True)
 auth_app = typer.Typer(help="Manage Paper Agent credentials.", no_args_is_help=True)
 library_app = typer.Typer(help="Manage the remote Frowang paper library.", no_args_is_help=True)
+assistant_app = typer.Typer(help="Use the unified personal assistant.", no_args_is_help=True)
 library_tag_app = typer.Typer(help="Manage paper tags.", no_args_is_help=True)
 library_note_app = typer.Typer(help="Manage paper notes.", no_args_is_help=True)
 library_annotation_app = typer.Typer(help="Manage PDF annotations.", no_args_is_help=True)
@@ -79,6 +81,7 @@ update_app = typer.Typer(help="Check for runtime updates.", no_args_is_help=True
 app.add_typer(config_app, name="config")
 app.add_typer(auth_app, name="auth")
 app.add_typer(library_app, name="library")
+app.add_typer(assistant_app, name="assistant")
 app.add_typer(zotero_app, name="zotero")
 app.add_typer(skills_app, name="skills")
 app.add_typer(workspace_app, name="workspace")
@@ -297,6 +300,7 @@ def capabilities(
                 "doctor.local",
                 "doctor.remote",
                 "library",
+                "assistant",
                 "zotero",
                 "skills.install",
                 "artifacts.text",
@@ -320,6 +324,10 @@ def capabilities(
                 "library annotation comment",
                 "library annotation locate",
                 "library annotation add",
+                "assistant ask",
+                "assistant list",
+                "assistant history",
+                "assistant stop",
                 "zotero collections",
                 "zotero items",
                 "zotero upload",
@@ -559,6 +567,167 @@ def _library_service(ctx: typer.Context) -> LibraryService:
     )
     ctx.call_on_close(client.close)
     return LibraryService(client)
+
+
+@assistant_app.callback(invoke_without_command=True)
+def assistant_root(
+    ctx: typer.Context,
+    api_key: Annotated[
+        Optional[str],
+        typer.Option("--api-key", help="Explicit Frowang API key."),
+    ] = None,
+    base_url: Annotated[
+        Optional[str],
+        typer.Option("--base-url", help="Override the active Frowang base URL."),
+    ] = None,
+) -> None:
+    ctx.ensure_object(dict)
+    ctx.obj["api_key"] = api_key
+    ctx.obj["base_url"] = base_url
+    if ctx.invoked_subcommand is None:
+        raise CommandError(
+            code=ErrorCode.USAGE_ERROR,
+            message="An assistant command is required",
+            exit_code=ExitCode.USAGE_ERROR,
+        )
+
+
+def _assistant_service(ctx: typer.Context) -> AssistantService:
+    manager, credentials = _manager()
+    settings = manager.load()
+    profile = settings.profiles[settings.active_profile]
+    obj = ctx.ensure_object(dict)
+    api_key = obj.get("api_key") or credentials.resolve().value
+    base_url = obj.get("base_url") or profile.frowang.base_url
+    client = FrowangClient(
+        api_key=api_key,
+        base_url=base_url,
+        timeout_seconds=profile.frowang.timeout_seconds,
+    )
+    ctx.call_on_close(client.close)
+    return AssistantService(client)
+
+
+def _assistant_context(raw: Optional[str]) -> Optional[dict[str, Any]]:
+    if raw is None:
+        return None
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise CommandError(
+            code=ErrorCode.USAGE_ERROR,
+            message="--context must be a valid JSON object",
+            exit_code=ExitCode.USAGE_ERROR,
+            details={"error": str(exc)},
+        ) from exc
+    if not isinstance(value, dict):
+        raise CommandError(
+            code=ErrorCode.USAGE_ERROR,
+            message="--context must be a valid JSON object",
+            exit_code=ExitCode.USAGE_ERROR,
+        )
+    return value
+
+
+def _emit_assistant_stream(
+    events: Any,
+    *,
+    json_output: bool,
+    human: bool,
+) -> None:
+    _validate_output_flags(json_output, human)
+    human_output = _use_human_output(json_output=json_output, human=human)
+    wrote_content = False
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        if human_output:
+            content = event.get("content")
+            if isinstance(content, str):
+                sys.stdout.write(content)
+                sys.stdout.flush()
+                wrote_content = True
+                continue
+            for key in ("notice", "error"):
+                value = event.get(key)
+                if isinstance(value, str):
+                    sys.stderr.write(value + "\n")
+                    sys.stderr.flush()
+                    break
+        else:
+            _write_payload(
+                success_envelope(
+                    data=event,
+                    command="assistant.ask",
+                    runtime_version=__version__,
+                    request_id=_request_id(),
+                )
+            )
+    if human_output and wrote_content:
+        sys.stdout.write("\n")
+
+
+@assistant_app.command("ask")
+def assistant_ask(
+    ctx: typer.Context,
+    message: Annotated[str, typer.Argument(help="Message to send to the assistant.")],
+    conversation_id: Annotated[
+        Optional[str], typer.Option("--conversation-id", help="Continue an existing conversation.")
+    ] = None,
+    context: Annotated[
+        Optional[str],
+        typer.Option("--context", help="Reading context as a JSON object."),
+    ] = None,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Ask the unified assistant and stream SSE events as JSON lines."""
+    _ACTIVE_COMMAND.set("assistant.ask")
+    events = _assistant_service(ctx).ask(
+        message,
+        conversation_id=conversation_id,
+        context=_assistant_context(context),
+    )
+    _emit_assistant_stream(events, json_output=json_output, human=human)
+
+
+@assistant_app.command("list")
+def assistant_list(
+    ctx: typer.Context,
+    limit: Annotated[int, typer.Option(help="Maximum number of conversations.")] = 100,
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """List conversations owned by the authenticated user."""
+    _ACTIVE_COMMAND.set("assistant.list")
+    data = _assistant_service(ctx).list_conversations(limit=limit)
+    _emit_success("assistant.list", data, json_output=json_output, human=human)
+
+
+@assistant_app.command("history")
+def assistant_history(
+    ctx: typer.Context,
+    conversation_id: Annotated[str, typer.Argument(help="Conversation ID.")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Get the messages and metadata for one conversation."""
+    _ACTIVE_COMMAND.set("assistant.history")
+    data = _assistant_service(ctx).history(conversation_id)
+    _emit_success("assistant.history", data, json_output=json_output, human=human)
+
+
+@assistant_app.command("stop")
+def assistant_stop(
+    ctx: typer.Context,
+    run_id: Annotated[str, typer.Argument(help="Active assistant run ID.")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Request cancellation of an active assistant run."""
+    _ACTIVE_COMMAND.set("assistant.stop")
+    data = _assistant_service(ctx).stop(run_id)
+    _emit_success("assistant.stop", data, json_output=json_output, human=human)
 
 
 def _library_success(

@@ -7,6 +7,23 @@
 - `llm_read_paper_ai_workflow/api/routers/papers.py`
 - `llm_read_paper_ai_workflow/api/routers/collections.py`
 - `llm_read_paper_ai_workflow/api/routers/api_keys.py`
+- `llm_read_paper_ai_workflow/api/chat/agentic/router.py`
+
+## 统一个人助手端点
+
+统一助手使用同一套 API Key 鉴权。`POST /chat/agentic` 和重试端点返回 SSE；共享
+`FrowangClient` 与 `mcp_paper_server.PaperAPIClient` 都按事件逐行解析，并对单个事件设置
+大小上限。MCP 的一次性 Tool 响应还限制事件数量和总字节数，避免把无界流读入内存。
+
+| 后端路由 | Python client | CLI 命令 | MCP tool | 状态 |
+|---------|---------------|----------|----------|------|
+| `POST /chat/agentic`（SSE） | `FrowangClient.stream_agentic_chat` / `PaperAPIClient.agentic_chat` | `paper-agent assistant ask` | `assistant_ask` | ✅ |
+| `GET /chat/conversations` | `list_chat_conversations` / `list_chat_conversations` | `paper-agent assistant list` | `assistant_list` | ✅ |
+| `GET /chat/conversations/{id}/history` | `get_chat_history` / `get_chat_history` | `paper-agent assistant history` | `assistant_history` | ✅ |
+| `POST /chat/runs/{id}/stop` | `stop_chat_run` / `stop_chat_run` | `paper-agent assistant stop` | `assistant_stop` | ✅ |
+| `POST /chat/conversations/{id}/retry`（SSE） | `retry_agentic_chat` / `retry_agentic_chat` | — | — | ⚪ Python client only（CLI/MCP 当前按最小 ask/list/history/stop 面提供） |
+| `DELETE /chat/conversations/{id}` | `delete_chat_conversation` / `delete_chat_conversation` | — | — | ⚪ Python client only |
+| `DELETE /chat/conversations/{id}/messages/{id}` | `delete_chat_message` / `delete_chat_message` | — | — | ⚪ Python client only |
 
 ## Short ID 支持
 
