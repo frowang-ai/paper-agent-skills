@@ -7,7 +7,7 @@ import re
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterator, Optional
+from typing import Any, Callable, Iterator, Mapping, Optional
 from uuid import uuid4
 
 from paper_agent.protocol import CommandError, ErrorCode, ExitCode
@@ -35,6 +35,34 @@ def _segment(value: object, label: str) -> str:
     if not text or not _SAFE_SEGMENT.fullmatch(text) or text in {".", ".."}:
         raise _error(ErrorCode.INTEGRITY_ERROR, f"Invalid {label} path segment", value=text)
     return text
+
+
+def _cache_path_segment(paper_id: str) -> str:
+    """Map a paper identity to a safe on-disk cache segment.
+
+    Collaborative references keep their ``collab~<root>~<paper>`` identity in
+    manifests and the state store, but ``~`` is not acceptable in cache path
+    segments; map it deterministically while preserving readability.
+    """
+    return _segment(paper_id.replace("~", "-"), "paper_id")
+
+
+def _revision_from_assets(assets: Mapping[str, Any], fallback: str) -> str:
+    """Resolve the revision that actually produced the downloadable artifacts.
+
+    Artifact URLs embed the producing task id (``/outputs/<task>/...``). The
+    detail endpoint's ``latest_task_id`` can diverge from those artifacts —
+    collaborative copies report the collaborative task (``task_collab_*``)
+    while read-only endpoints fall back to the underlying paper's task — so the
+    cache revision must follow the artifacts, not the detail endpoint.
+    """
+    for key in ("ocr_markdown_url", "layout_url"):
+        url = assets.get(key)
+        if isinstance(url, str):
+            parts = url.split("/")
+            if len(parts) >= 3 and parts[1] == "outputs":
+                return _segment(parts[2], "revision")
+    return fallback
 
 
 def _hash_file(path: Path) -> str:
@@ -155,39 +183,59 @@ class ArtifactSyncService:
     def verify_revision(self, root: Path) -> dict[str, Any]:
         return self._verify(root.expanduser().resolve())
 
+    def _cached_result(
+        self, paper_id: str, cache_segment: str, revision: str
+    ) -> Optional[dict[str, Any]]:
+        """Return the verified cached revision, or None when not cached yet."""
+        revision_root = self.papers_root / cache_segment / revision
+        if not revision_root.exists():
+            return None
+        manifest = self._verify(revision_root)
+        if (
+            manifest.get("profile") != self.profile
+            or manifest.get("paper_id") != paper_id
+            or manifest.get("revision") != revision
+            or manifest.get("source", {}).get("base_url") != self.base_url
+        ):
+            raise _error(
+                ErrorCode.INTEGRITY_ERROR,
+                "Cached paper identity does not match the active profile",
+                path=str(revision_root),
+            )
+        self._record(manifest, revision_root)
+        return self._result(manifest, revision_root, cache_hit=True)
+
     def sync(self, paper_ref: str) -> dict[str, Any]:
         metadata = self.library.show(paper_ref)
         if not isinstance(metadata, dict):
             raise _error(ErrorCode.INTEGRITY_ERROR, "Paper metadata response is invalid")
-        paper_id = _segment(metadata.get("paper_id"), "paper_id")
-        revision = _segment(
+        # 身份保持服务器返回的引用形态（collab~ 引用保留 scoped ID）；
+        # 仅磁盘缓存路径派生安全目录段。
+        paper_id = (
+            str(metadata.get("paper_id") or "").strip() or str(paper_ref).strip()
+        )
+        cache_segment = _cache_path_segment(paper_id)
+        detail_revision = _segment(
             metadata.get("latest_task_id") or metadata.get("task_id"), "revision"
         )
         title = str(metadata.get("title") or "Untitled paper")
         short_id = paper_ref if re.fullmatch(r"P-[A-Za-z0-9]+", paper_ref) else None
-        revision_root = self.papers_root / paper_id / revision
 
         with _paper_lock(self.data_dir / "locks", f"{self.profile}:{paper_id}"):
-            if revision_root.exists():
-                manifest = self._verify(revision_root)
-                if (
-                    manifest.get("profile") != self.profile
-                    or manifest.get("paper_id") != paper_id
-                    or manifest.get("revision") != revision
-                    or manifest.get("source", {}).get("base_url") != self.base_url
-                ):
-                    raise _error(
-                        ErrorCode.INTEGRITY_ERROR,
-                        "Cached paper identity does not match the active profile",
-                        path=str(revision_root),
-                    )
-                self._record(manifest, revision_root)
-                return self._result(manifest, revision_root, cache_hit=True)
+            cached = self._cached_result(paper_id, cache_segment, detail_revision)
+            if cached is not None:
+                return cached
 
             remote_assets = self.library.assets(paper_ref)
             assets = remote_assets.get("assets") if isinstance(remote_assets, dict) else None
             if not isinstance(assets, dict):
                 raise _error(ErrorCode.NOT_READY, "Paper assets are not ready", paper_id=paper_id)
+            # revision 以产物 URL 内嵌的任务号为准（collab 副本与 detail 任务号可能不同）
+            revision = _revision_from_assets(assets, detail_revision)
+            cached = self._cached_result(paper_id, cache_segment, revision)
+            if cached is not None:
+                return cached
+
             full_url = assets.get("ocr_markdown_url")
             layout_url = assets.get("layout_url")
             if not isinstance(full_url, str) or not isinstance(layout_url, str):
@@ -199,7 +247,9 @@ class ArtifactSyncService:
                 )
             tree_url = assets.get("attribute_tree_url")
 
-            staging = self.papers_root / ".staging" / f"{paper_id}-{revision}-{uuid4().hex}"
+            staging = (
+                self.papers_root / ".staging" / f"{cache_segment}-{revision}-{uuid4().hex}"
+            )
             try:
                 staging.mkdir(parents=True)
                 academic = self.library.metadata(paper_ref)
@@ -264,6 +314,7 @@ class ArtifactSyncService:
                     "artifacts": entries,
                 }
                 _write_json(staging / "artifact-manifest.json", manifest)
+                revision_root = self.papers_root / cache_segment / revision
                 revision_root.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(staging, revision_root)
             except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:

@@ -89,6 +89,7 @@
 | `POST /collections/{root}/papers/{id}/actions/reprocess` | `reprocess collab~...` | ✅ |
 | 无协作等价端点 | `fulltext`/`summary`/`deep`/`assets`/`attribute-tree`/screenshots GET | ✅ 降级底层 paper 私有读端点 |
 | 无协作等价端点 | `delete` / screenshots 生成 | ⛔ 对 collab ID 明确报 USAGE_ERROR |
+| 无协作等价端点 | `workspace add/sync`（0.9.6 起） | ✅ 接受 `collab~` 引用：身份保留 scoped 形态，缓存目录派生安全段；revision 以产物 URL 内嵌任务号为准，学术元数据走 workspace metadata 端点 |
 
 ## 协作关系管理端点（0.9.4 起 CLI 支持）
 

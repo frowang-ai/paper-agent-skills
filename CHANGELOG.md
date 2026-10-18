@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2026-10-18
+
+### Fixed
+
+- **`workspace add` accepts collaborative references**: `collab~<collection_key>~<paper_id>`
+  scoped IDs (as returned by `library collection items`) no longer fail with a misleading
+  `INTEGRITY_ERROR: Invalid paper_id path segment`. The scoped identity is preserved in the
+  project manifest and state store; only on-disk cache directories derive a safe segment
+  (`~` mapped to `-`). Academic metadata for collaborative copies keeps flowing through the
+  workspace metadata endpoint (collection-scoped overrides).
+- **Cache revision now follows the artifacts, not the detail endpoint**: artifact URLs embed
+  the producing task id (`/outputs/<task>/...`). Collaborative copies report the collaborative
+  task (`task_collab_*`) while read-only asset endpoints fall back to the underlying paper's
+  artifacts, so the cached revision could drift from the downloaded content. The artifact sync
+  resolves the revision from asset URLs and falls back to the detail endpoint's task id when
+  URLs have an unexpected shape. Normal private papers keep their single-request cache-hit
+  path (detail task id checked first).
+
 ## [0.9.5] - 2026-09-24
 
 ### Added

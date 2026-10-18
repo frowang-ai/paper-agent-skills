@@ -45,6 +45,11 @@ paper-agent library show P-3a
 paper-agent workspace add /absolute/project/root P-3a P-8f
 ```
 
+协作收藏夹里的论文同样可以加入项目：`add` 直接接受 `library collection items`
+返回的 `collab~<collection_key>~<paper_id>` scoped ID（0.9.6 起）。manifest 与
+`sync`/`remove` 均以 scoped ID 为论文身份；注意协作副本的全文/资产读取降级到
+底层论文的私有端点，owner 私有侧处理失败时协作引用同样返回 `NOT_READY`。
+
 `add` 自动把 text profile 同步到用户级 Global Artifact Store，再复制
 `metadata.json`、`full.md`、`layout.json` 和 `attribute_tree.json`（存在时）到项目。
 其中 `metadata.json` 是服务端抽取的学术元数据（含 `citations.apa`、`citations.bibtex`、

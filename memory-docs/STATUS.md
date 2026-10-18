@@ -8,11 +8,22 @@ not_for: "模块级实现细节、历史叙事或完整架构设计"
 
 # Current Status
 
-Last verified: `2026-10-04`
+Last verified: `2026-10-18`
 
 ## Current Focus
 
-- **资源鉴权兼容已实测，流式下载拒绝补丁尚待发布（2026-10-04）**：已安装 PyPI 0.9.5 使用 API Key、无浏览器 Cookie，真实 list/assets/fulltext/summary/PDF/layout 读取均通过。`main` 的 `87a1f65` 修复下载遭 401/403/404 时未读取流式错误体导致的堆栈；相关 22 项回归和真实源码 CLI 拒绝路径通过。**版本未变、未发 PyPI、用户现有安装未被替换**；正常授权读取不受影响，旧版的错误提示仍未修好。证据与边界见 [本次历史记录](HISTORY.md#asset-auth-20261004)。
+- **0.9.6：`workspace add` 支持 `collab~` 引用（2026-10-18）**：修复协作副本引用在
+  ArtifactSyncService 被拒为 `INTEGRITY_ERROR: Invalid paper_id path segment` 的缺陷：
+  scoped 身份保留进项目 manifest 与状态库，仅磁盘缓存路径派生安全目录段；缓存 revision
+  改以产物 URL 内嵌任务号为准（collab 副本 detail 报 `task_collab_*` 而只读资产端点
+  降级读底层论文产物，两侧任务号会错位），URL 形态异常时退回 detail 任务号，普通私有
+  论文保持单请求 cache-hit 路径。新增 5 项 `tests/_test_collab_workspace_sync.py` 回归；
+  `PYTHONUTF8=1` 下 176 项全过，Ruff 与 `uv build` 通过。同步更新 API_SURFACE 与
+  paper-workspace/paper-library Skill 文档。
+
+- **资源鉴权兼容已实测，流式下载拒绝补丁随 0.9.6 一同发布（2026-10-04 起）**：真实
+  list/assets/fulltext/summary/PDF/layout 读取均通过；`87a1f65` 修复下载遭 401/403/404
+  时未读取流式错误体导致的堆栈，此前未发 PyPI，随本次版本一并带上。
 
 - 当前已发布版本为 **`0.9.5`**：GitHub tag `v0.9.5` 指向 `b839151`，wheel 与 sdist 已发布
   [PyPI](https://pypi.org/project/paper-agent-skills/0.9.5/)，本机已从 PyPI 重装并确认更新检查返回 0.9.5。

@@ -142,6 +142,8 @@ paper-agent library annotation list "collab~C-key~<uuid>"
 
 规则与边界：
 - 想让协作者看到笔记/讨论时，必须用 collab~ ID；用 P-xxx 或裸 UUID 写的是自己的私有副本。
+- `workspace add` 也接受 collab~ 引用（0.9.6 起）：manifest 以 scoped ID 为论文身份，
+  后续 `workspace sync/remove` 用同一引用操作；全文/资产读取降级到底层论文私有端点。
 - 协作 notes 全成员可见；`note add` 走 JSON body（CLI 自动处理）。
 - 协作 annotations 返回全量快照（所有成员），不支持 `--since`；他人批注只读——
   `annotation comment` 只能追加到自己创建的批注上，否则 CLI 会报错。
