@@ -68,6 +68,7 @@ library_collab_app = typer.Typer(
     help="Manage collaborative collection invites, join requests, and members.",
     no_args_is_help=True,
 )
+library_share_app = typer.Typer(help="Create, list, and revoke paper share links.", no_args_is_help=True)
 library_key_app = typer.Typer(help="Manage API keys with a website JWT.", no_args_is_help=True)
 zotero_app = typer.Typer(help="Import papers from Zotero.", no_args_is_help=True)
 skills_app = typer.Typer(help="Install Paper Agent Skills and build Plugins.", no_args_is_help=True)
@@ -92,6 +93,7 @@ library_app.add_typer(library_note_app, name="note")
 library_app.add_typer(library_annotation_app, name="annotation")
 library_app.add_typer(library_collection_app, name="collection")
 library_app.add_typer(library_collab_app, name="collab")
+library_app.add_typer(library_share_app, name="share")
 library_app.add_typer(library_key_app, name="key")
 workspace_app.add_typer(workspace_names_app, name="names")
 
@@ -300,6 +302,9 @@ def capabilities(
                 "doctor.local",
                 "doctor.remote",
                 "library",
+                "library.share.create",
+                "library.share.list",
+                "library.share.revoke",
                 "assistant",
                 "zotero",
                 "skills.install",
@@ -324,6 +329,9 @@ def capabilities(
                 "library annotation comment",
                 "library annotation locate",
                 "library annotation add",
+                "library share create",
+                "library share list",
+                "library share revoke",
                 "assistant ask",
                 "assistant list",
                 "assistant history",
@@ -1528,6 +1536,51 @@ def library_collection_remove(
     _library_success(
         "library.collection.remove", data, json_output=json_output, human=human
     )
+
+
+@library_share_app.command("create")
+def library_share_create(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID, UUID, or collab~ scoped ID.")],
+    kind: Annotated[str, typer.Option(help="claim (copy to library) or info (information only).")] = "claim",
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Create a share using your API key. Save share_url: it is returned only once.
+
+    Links expire after 30 days. A repeated create makes another link; on a
+    timeout inspect `share list` before retrying because the outcome is unknown.
+    """
+    _ACTIVE_COMMAND.set("library.share.create")
+    data = _library_service(ctx).create_share(paper_id, kind=kind)
+    _library_success("library.share.create", data, json_output=json_output, human=human)
+
+
+@library_share_app.command("list")
+def library_share_list(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID, UUID, or collab~ scoped ID.")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """List share IDs, kinds, statuses and expiry dates (not the original URLs)."""
+    _ACTIVE_COMMAND.set("library.share.list")
+    data = _library_service(ctx).list_shares(paper_id)
+    _library_success("library.share.list", data, json_output=json_output, human=human)
+
+
+@library_share_app.command("revoke")
+def library_share_revoke(
+    ctx: typer.Context,
+    paper_id: Annotated[str, typer.Argument(help="Paper short ID, UUID, or collab~ scoped ID.")],
+    share_id: Annotated[str, typer.Argument(help="Share ID returned by create/list.")],
+    json_output: JsonOption = False,
+    human: HumanOption = False,
+) -> None:
+    """Revoke an owned share link; existing recipient copies remain available."""
+    _ACTIVE_COMMAND.set("library.share.revoke")
+    data = _library_service(ctx).revoke_share(paper_id, share_id)
+    _library_success("library.share.revoke", data, json_output=json_output, human=human)
 
 
 @library_key_app.command("create")

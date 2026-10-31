@@ -71,6 +71,21 @@ uv tool install .
 
 安装后重新打开 Codex/Claude 会话，让平台重新发现 Skills。
 
+## 论文分享
+
+0.9.7 起可用现有 API Key 管理论文分享，无需另取网页登录凭证（后端须部署配套更新）：
+
+```powershell
+paper-agent library share create P-24r
+paper-agent library share list P-24r
+paper-agent library share revoke P-24r SHARE_ID
+```
+
+创建默认为领取链接，`--kind info` 可创建信息卡；支持 `collab~ROOT~PAPER` 共享副本。
+完整链接只在创建时返回，请立即保存 `share_url` 后生成二维码。列表只返回状态和时间，
+不能恢复原链接；创建超时不要盲目重试。链接有效期及权限见
+[`paper-library` Skill](skills/paper-library/SKILL.md)。
+
 ## 统一配置
 
 ```powershell

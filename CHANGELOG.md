@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] - 2026-10-31
+
+### Added
+
+- **Paper share management**: `library share create/list/revoke` use the configured API key
+  for private papers and `collab~` workspace copies. `create` defaults to a claim link and
+  supports `--kind info`; private `P-xxx` references resolve to canonical IDs first.
+- Share URLs are returned only at creation and must be saved by the caller. Listing returns
+  IDs/status/expiry, not recoverable URLs. Mutations are never automatically retried.
+- Requires the matching backend update enabling API Key authentication on the six share
+  management routes. Existing JWT, ownership, workspace isolation, quota and expiry rules
+  remain in force; claim/reject/card-summary are not part of this CLI release.
+
 ## [0.9.6] - 2026-10-18
 
 ### Fixed

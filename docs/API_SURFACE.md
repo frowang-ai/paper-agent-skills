@@ -27,7 +27,7 @@
 
 ## Short ID 支持
 
-所有接受 `{id}` / `{key}` 路径参数的端点同时支持 **short_id**（`P-xxx` / `C-xxx`，Base36 编码）和完整 UUID。列表接口返回的每条记录都包含 `short_id` 字段。
+普通论文和文件夹端点支持 **short_id**（`P-xxx` / `C-xxx`，Base36 编码）和完整 UUID。分享管理 REST 端点要求 canonical ID，`library share` 会先把私有 `P-xxx` 解析为 UUID。列表接口返回的每条记录包含 `short_id` 字段。
 
 - 论文：`P-1`, `P-a3f`, `P-zzzzzz`（6 位 Base36 = 21 亿条）
 - 文件夹：`C-1`, `C-b7`
@@ -126,6 +126,19 @@
 | `DELETE /collections/{key}/items` | `paper-agent library collection remove` | `remove_collection_items` | ✅ |
 | `GET /collections/assigned-task-ids` | —（UI 辅助） | — | ⚪ 仅前端 |
 | `GET /collections/item-counts` | —（UI 辅助） | — | ⚪ 仅前端 |
+
+## 论文分享管理（0.9.7 起）
+
+| 后端路由 | CLI 命令 | MCP tool | 状态 |
+|---|---|---|---|
+| `POST /papers/{id}/shares` | `library share create ID [--kind claim\|info]` | — | CLI 已接入 |
+| `GET /papers/{id}/shares` | `library share list ID` | — | CLI 已接入 |
+| `DELETE /papers/{id}/shares/{share_id}` | `library share revoke ID SHARE_ID` | — | CLI 已接入 |
+| 同上三个操作的 `/collections/{root}/papers/{id}/shares[/{share_id}]` | 同上，传入 `collab~ROOT~PAPER` | — | CLI 已接入，共享副本隔离 |
+
+六个管理端点支持 JWT/API Key，保留 owner/成员权限、30 天有效期与每日 50 条配额。
+完整 `share_url` 只在创建时返回；服务端只存 token 哈希，`list` 只返回状态和时间。
+调用者必须保存创建结果，创建超时不能盲目重试。领取/拒绝/卡片概括仍使用 JWT，未新增 CLI/MCP 命令。
 
 ## API Key 管理（JWT only）
 

@@ -65,7 +65,7 @@ paper-agent skills plugin-build ./dist/paper-agent-plugin
 
 ```powershell
 uv run --no-sync pytest -q
-uv run --no-sync ruff check src tests packages skills/paper-library/scripts skills/zotero-upload/scripts scripts
+uv run --no-sync ruff check src tests packages scripts
 uv lock --check
 uv build
 ```

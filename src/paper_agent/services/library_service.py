@@ -109,6 +109,36 @@ class LibraryService:
     def show(self, paper_id: str) -> Any:
         return _unwrap(self.client.request_json("GET", paper_base(paper_id)))
 
+    def _share_base(self, paper_id: str) -> str:
+        # Share routes require canonical IDs; ordinary paper detail resolves P- IDs.
+        if re.fullmatch(r"P-[0-9A-Za-z]+", paper_id.strip()):
+            paper = self.show(paper_id)
+            canonical = paper.get("paper_id") if isinstance(paper, dict) else None
+            if not isinstance(canonical, str) or not canonical.strip():
+                raise CommandError(
+                    code=ErrorCode.REMOTE_ERROR,
+                    message="Paper detail did not include a canonical paper_id",
+                    exit_code=ExitCode.NETWORK_OR_REMOTE,
+                )
+            paper_id = canonical
+        return paper_base(paper_id) + "/shares"
+
+    def create_share(self, paper_id: str, *, kind: str = "claim") -> Any:
+        if kind not in {"claim", "info"}:
+            raise _usage("Share kind must be claim or info", kind=kind)
+        return _unwrap(self.client.request_json(
+            "POST", self._share_base(paper_id), json_body={"kind": kind},
+        ))
+
+    def list_shares(self, paper_id: str) -> Any:
+        return _unwrap(self.client.request_json("GET", self._share_base(paper_id)))
+
+    def revoke_share(self, paper_id: str, share_id: str) -> Any:
+        share_segment = _segment(share_id)
+        return _unwrap(self.client.request_json(
+            "DELETE", f"{self._share_base(paper_id)}/{share_segment}",
+        ))
+
     def get_content(self, paper_id: str, kind: str) -> str:
         if kind not in {"fulltext", "summary", "deep"}:
             raise _usage("Unsupported paper content kind", kind=kind)

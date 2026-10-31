@@ -236,6 +236,29 @@ paper-agent library collection delete C-2
 Collection 的 add/remove 参数是论文 `task_id`，不是 `P-xxx` short ID。执行删除前先列出
 Collection 和 items，并向用户确认。
 
+## 论文分享（0.9.7+）
+
+用已有 API Key 创建论文领取链接，无需另外提供网页登录 JWT（需服务器部署对应更新）：
+
+```bash
+paper-agent library share create P-24r                 # 默认 kind=claim
+paper-agent library share create P-24r --kind info     # 仅展示信息，不能领取
+paper-agent library share list P-24r
+paper-agent library share revoke P-24r SHARE_ID
+paper-agent library share create "collab~ROOT_KEY~PAPER_UUID"
+```
+
+- 用户要求分享论文时可创建链接；只查询论文不隐含创建分享。撤销前确认目标链接。
+- `create` 返回 `share_id`、`share_url`、`kind`、`expires_at`。立即把结果保存到当前任务的
+  本地产物；二维码编码 `share_url`。链接按服务器既有规则 30 天过期，每用户每天最多创建 50 条。
+- 服务端仅保存 token 哈希，`list` **不返回原始链接**。复用时必须同时有本地保存的 URL，
+  并用 `list` 确认对应 share_id 仍为 active、未到期；不能仅凭列表记录恢复 URL。
+- `create` 每次调用创建新链接，不是幂等操作。超时后先查 `list` 核对是否已创建，
+  不盲目重试；若链接已创建但响应丢失，原 URL 无法找回，应说明情况后处理。
+- 支持普通 UUID、私有论文 `P-xxx` 和 `collab~` 引用。协作引用始终指向共享副本；
+  成员可分享，创建者或空间 owner 可管理，不能操作无权访问的论文。
+- 本命令只管理链接。领取/拒绝与卡片 AI 概括仍走网站 JWT 流程。
+
 ## API Key 管理
 
 通常让用户在网站 UI 管理 API Key。只有用户明确提供网页登录 JWT 并要求命令行操作时：

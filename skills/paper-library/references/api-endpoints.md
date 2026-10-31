@@ -21,8 +21,21 @@ Base URL: `https://frowang.com/paper-api/api/v1`
 
 | 方式 | Header | 适用范围 |
 |------|--------|---------|
-| API Key | `X-API-Key: pk_...` | 论文 / 标签 / 笔记 / 文件夹端点 |
+| API Key | `X-API-Key: pk_...` | 论文 / 标签 / 笔记 / 文件夹 / 论文分享管理端点 |
 | JWT | `Authorization: Bearer <token>` | API Key 管理端点 |
+
+## 论文分享管理（0.9.7+）
+
+| Method | Path | CLI 命令 | 说明 |
+|---|---|---|---|
+| POST | /papers/{id}/shares | `share create ID [--kind claim\|info]` | 返回一次性的 share_url，默认 claim |
+| GET | /papers/{id}/shares | `share list ID` | share_id/kind/status/时间，不返回原始 URL |
+| DELETE | /papers/{id}/shares/{share_id} | `share revoke ID SHARE_ID` | 撤销指定链接，不删除领取者副本 |
+
+协作引用 `collab~ROOT~PAPER` 对应 `/collections/{root}/papers/{id}/shares[/{share_id}]`，
+三个同类端点均支持 API Key/JWT；CLI 对私有 `P-xxx` 先查询论文详情解析 UUID。
+有效期 30 天、每用户每天 50 条，保留服务端归属及空间权限检查。
+`/shares/{token}/claim`、`reject`、`card-summary` 仍只支持 JWT，本 CLI 未封装。
 
 ## 论文端点
 
