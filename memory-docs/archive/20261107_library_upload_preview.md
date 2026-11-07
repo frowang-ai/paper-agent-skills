@@ -131,15 +131,25 @@ Agent 已能自行发现文件，不需要额外 discovery 命令。PR 因此移
 - 复审 P3：复盘误写不存在的 `resolved_path` 字段，已改为实际响应字段 `path`。
 - 审核代理未重复全量测试；二次修正后由主 Agent 执行 11 项定向、198 项全量、Ruff 和构建。
 
-## 发布边界与回退
+## 终审与功能合并
 
-- 本次改动位于独立 worktree `_worktrees/paper-upload-preview` 和任务分支
-  `feat/library-upload-preview`；不代表 PyPI 已发布、用户已安装或生产用户已更新 Skill。
-- 安装版只有在后续发布 Runtime 并刷新已安装 Skill 后才获得新行为；不能将本地测试通过
-  描述成线上误传风险已经消除。
+- 同一审核代理终审 `main...e1605b8`，结论为 **PASS**，没有合并前待改项。全部无效输入先于
+  配置和凭据检查被拦截，正常 `--yes` 上传、预览无凭据/网络依赖及文档字段均通过。
+- 审核代理独立执行 8 个定向检查，未修改文件、未发起 HTTP 请求；主 Agent 的 11 项定向、
+  198 项全量、Ruff 和构建结果为终审输入。
+- 用户授权在 PASS 后合并、发布和部署。功能 PR #1 已于 2026-11-07 合并，merge commit 为
+  `673f2ad528ab46a879f44997aad082cb31534cc7`。
+
+## 发布、部署与回退
+
+- 发布准备提交 `5930835` 将版本定为 0.10.0；GitHub tag/release `v0.10.0` 指向该提交。
+  PyPI wheel 和 sdist 已上传，官方 SHA-256 与本地验收包一致。
+- 本机 Runtime 已从 0.9.7 升到 0.10.0，`update check --refresh` 为 current/latest 0.10.0。
+  共享 `~/.agents/skills/paper-library` 仅合并上传章节和 API 参考，其他本地修改保留，
+  Sync-Skills 无冲突，未使用 `--platform all`。其他机器和旧安装版仍需各自升级，不能把本机
+  部署描述为所有用户已生效。
+- 198 项全量、Ruff、lock/build/Twine、隔离 wheel E2E、双平台安装和 Claude validator 通过；
+  当前 Codex CLI 无 `plugin validate` 子命令，未执行 Codex 原生 validator。
 - 旧 `upload-dir` 调用需迁移为 Agent 自行发现后传明确路径；`upload-many` 旧调用需要预览后
-  加 `--yes`。这些是为防止积分消耗和误传而作出的行为变更；单篇上传及服务端 `/papers` API
-  未改变。
-- MCP 的上传工具不在本次改动范围内。
-- 如需回退，还原上述 CLI、Service 和 Skill 合同即可；本次没有数据库迁移、远程状态变更
-  或用户文件迁移。
+  加 `--yes`。单篇上传及服务端 `/papers` API 未改变，MCP 不在本次范围内。
+- 如需回退，应发布还原 CLI、Service 和 Skill 合同的新版本；本次没有数据库迁移或用户文件迁移。

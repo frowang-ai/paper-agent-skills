@@ -227,3 +227,33 @@ paper-agent skills update --platform all
 **这不是新版本发布记录**：版本号未变、未发 PyPI，也未升级用户已安装 0.9.5。正常授权读取已通过；用户安装版的拒绝错误格式需后续发布才修复。另一个 Typer 通用异常处理兼容现象未在此一行补丁中扩修，不据此宣称整个 CLI 异常分支均已重验。
 
 跨仓完整生产证据由 website 的 `docs/ops/20261004_asset_access_auth_deploy.md` 维护；本公开 SDK 仓库不记录凭据、私有论文身份或下载正文。后续发布沿用 [RELEASE_CHECKLIST](../docs/RELEASE_CHECKLIST.md)。
+
+## 2026-11-07：明确路径上传与 0.10.0 正式发布
+
+生产案例显示外部 Agent 可能把论文项目目录中的正文和图件全部提交为独立论文。0.10.0
+移除 `upload-dir`，不新增发现命令；Coding Agent 使用自身文件工具发现候选，用户确认后传
+绝对路径执行 `upload-many --yes`。批量默认本地预览且无需凭据或网络，英文 help、
+`next_action` 和路径错误承担自描述；全部无效输入在配置、凭据和远程调用之前被拒绝。
+单篇上传保持不变，部分无效文件继续保留逐项 `skipped/error`。稳定决策见 DEC-024，案例和
+三轮审核过程见 [专项复盘](archive/20261107_library_upload_preview.md)。
+
+### 审核与发布事实
+
+- 功能 PR #1 合并为 `673f2ad528ab46a879f44997aad082cb31534cc7`。同一
+  `evomap/gpt-6.1-sol` xhigh 代理前两轮为 PASS WITH CHANGES，意见修正后终审 PASS。
+- 发布准备提交 `5930835` 将 Runtime、lockfile 和 CHANGELOG 定为 0.10.0；
+  [GitHub tag/release v0.10.0](https://github.com/frowang-ai/paper-agent-skills/releases/tag/v0.10.0)
+  指向该提交，[PyPI 0.10.0](https://pypi.org/project/paper-agent-skills/0.10.0/) 的 wheel 和
+  sdist 已发布，官方 JSON 中两份 SHA-256 均与本地验收包一致。
+- 本机 Runtime 已从 0.9.7 升级到 0.10.0，`update check --refresh` 返回 current/latest 均为
+  0.10.0。共享 `~/.agents/skills/paper-library` 只合并上传章节和 API 参考，保留其他本地修改；
+  Sync-Skills 无冲突，未使用 `--platform all`。
+
+### 验证与边界
+
+198 项全量测试、Ruff、`uv lock --check`、构建和 Twine 检查通过。隔离 Python 3.13 环境
+安装实际 wheel，验证配置初始化、假凭据设置/状态/删除、离线 doctor、Skill 列表、英文上传
+help 及全部无效输入的错误契约。Codex 和 Claude project-scope 安装、Plugin 构建及 Claude
+原生 validator 通过；当前 Codex CLI 没有 `plugin validate` 子命令，因此未执行 Codex 原生
+validator，未将其记为通过。上传预览只检查存在性和扩展名，不能验证 PDF 内容或用户是否
+真正确认；直接 HTTP、MCP、单文件循环和旧安装版不受新 CLI 工作流约束。
