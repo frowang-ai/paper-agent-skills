@@ -12,12 +12,13 @@ Last verified: `2026-11-07`
 
 ## Current Focus
 
-- **明确路径批量上传与 Agent-native CLI 功能已合并，0.10.0 发布准备中（2026-11-07）**：
-  针对外部 Agent 将论文目录中的正文、图件等 PDF 批量写入主库的案例，已移除 `upload-dir`，
-  Agent 自行发现候选、用户确认后传绝对路径执行 `upload-many --yes`；不带 `--yes` 仅本地预览。
-  英文 help、`next_action` 和路径错误承担自描述，Skill 保持精简。功能 PR #1 已合并为 `673f2ad`，
-  同一 xhigh 代理终审 PASS；11 项定向回归、完整 `PYTHONUTF8=1` 测试 198 passed，Ruff 与构建通过。
-  生产案例、三轮审核、协议和验证边界见[专项记录](archive/20261107_library_upload_preview.md)。
+- **明确路径批量上传与 Agent-native CLI 0.10.0 已发布并部署（2026-11-07）**：`upload-dir`
+  已移除，Agent 自行发现候选、用户确认后传绝对路径执行 `upload-many --yes`；不带 `--yes`
+  仅本地预览。英文 help、`next_action` 和路径错误承担自描述，Skill 保持精简。功能 PR #1
+  已合并为 `673f2ad`，同一 xhigh 代理终审 PASS；198 项全量测试、Ruff、构建、隔离 wheel
+  E2E 和 Claude Plugin validator 通过。PyPI 包哈希一致，GitHub tag/release 为 `v0.10.0`；
+  本机 Runtime 已升级，共享 Skill 已合并且 Sync-Skills 无冲突。Codex 原生 validator 因当前
+  CLI 无此子命令未执行。详见[发布记录](HISTORY.md)与[专项复盘](archive/20261107_library_upload_preview.md)。
 
 - **0.9.6：`workspace add` 支持 `collab~` 引用（2026-10-18）**：修复协作副本引用在
   ArtifactSyncService 被拒为 `INTEGRITY_ERROR: Invalid paper_id path segment` 的缺陷：
