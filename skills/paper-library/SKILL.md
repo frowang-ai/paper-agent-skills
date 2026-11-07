@@ -75,12 +75,16 @@ paper-agent library upload-dir ./pdfs --dry-run
 ```
 
 向用户展示 `results` 中的文件清单及 `would_upload`、`skipped` 数量，明确指出图件等其他 PDF
-也会被当成独立论文上传。取得用户对这批文件的明确同意后，才使用同一路径和 `--yes` 正式上传：
+也会被当成独立论文上传。取得用户对这批文件的明确同意后，使用已确认的明确路径正式上传：
 
 ```bash
 paper-agent library upload-many ./a.pdf ./b.pdf --yes
-paper-agent library upload-dir ./pdfs --yes
 ```
+
+目录预览后，应把用户确认的文件逐个列给 `upload-many --yes`，例如
+`paper-agent library upload-many ./pdfs/a.pdf ./pdfs/b.pdf --yes`。不要把目录预览理解为清单快照：
+`upload-dir --yes` 会重新枚举执行时的目录，后加入的 PDF 也会进入上传；文件内容同样不会在预览时
+锁定。只有用户明确接受执行时的目录状态才使用 `upload-dir --yes`，清单或内容有变化时重新预览。
 
 `upload-many` 和 `upload-dir` 不带 `--yes` 时默认也只预览，不能直接用于正式上传。
 `upload-dir` 只处理目录当前层的 PDF，不递归子目录。不要根据 `fig`、`图` 等文件名静默排除；

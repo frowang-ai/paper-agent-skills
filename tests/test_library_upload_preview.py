@@ -8,6 +8,10 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import pytest
+from typer.testing import CliRunner
+
+from paper_agent import cli
 from paper_agent.services import LibraryService
 
 
@@ -26,6 +30,8 @@ class _FakeClient:
 
 def _run(tmp_path: Path, *args: str, **extra: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
+    env.pop("FROWANG_API_KEY", None)
+    env.pop("PAPER_API_KEY", None)
     env.update(
         {
             "PYTHONPATH": str(SRC_ROOT),
@@ -111,14 +117,45 @@ def test_upload_many_defaults_to_preview_without_credentials(tmp_path: Path) -> 
     assert payload["meta"]["command"] == "library.upload-many"
 
 
-def test_upload_dir_yes_uploads_previewed_files(tmp_path: Path) -> None:
-    paths: list[str] = []
+@pytest.mark.parametrize("command", ["upload-dir", "upload-many"])
+@pytest.mark.parametrize("flags", [[], ["--dry-run"]])
+def test_preview_never_loads_config_or_constructs_remote_service(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+    flags: list[str],
+) -> None:
+    documents = tmp_path / "documents"
+    documents.mkdir()
+    pdf = documents / "main.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    target = documents if command == "upload-dir" else pdf
+
+    def fail(_=None):
+        raise AssertionError("preview must not load config, credentials, or remote services")
+
+    monkeypatch.setattr(cli, "_manager", fail)
+    monkeypatch.setattr(cli, "_library_service", fail)
+    monkeypatch.setattr(cli, "FrowangClient", fail)
+
+    result = CliRunner().invoke(
+        cli.app,
+        ["library", command, str(target), *flags, "--json"],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0, result.output
+    assert payload["data"]["dry_run"] is True
+    assert payload["data"]["would_upload"] == 1
+
+
+def test_upload_dir_yes_uploads_exact_preview_filenames(tmp_path: Path) -> None:
+    uploads: list[tuple[str, bytes]] = []
 
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:  # noqa: N802
-            paths.append(self.path)
             length = int(self.headers.get("Content-Length", "0"))
-            self.rfile.read(length)
+            uploads.append((self.path, self.rfile.read(length)))
             body = json.dumps(
                 {
                     "success": True,
@@ -147,6 +184,12 @@ def test_upload_dir_yes_uploads_previewed_files(tmp_path: Path) -> None:
     for name in ("main.pdf", "figure.pdf"):
         (documents / name).write_bytes(b"%PDF-1.4\n")
     try:
+        preview = _run(tmp_path, "library", "upload-dir", str(documents))
+        preview_payload = json.loads(preview.stdout)
+        expected_names = [item["file"] for item in preview_payload["data"]["results"]]
+        assert preview.returncode == 0, preview.stderr
+        assert uploads == []
+
         _run(tmp_path, "config", "init")
         base_url = f"http://127.0.0.1:{server.server_port}/api/v1"
         result = _run(
@@ -165,11 +208,16 @@ def test_upload_dir_yes_uploads_previewed_files(tmp_path: Path) -> None:
         thread.join(timeout=2)
 
     payload = json.loads(result.stdout)
+    actual_names = [
+        body.split(b'filename="', 1)[1].split(b'"', 1)[0].decode()
+        for _, body in uploads
+    ]
     assert result.returncode == 0, result.stderr
     assert payload["data"]["uploaded"] == 2
     assert payload["data"]["would_upload"] == 2
     assert payload["data"]["dry_run"] is False
-    assert paths == ["/api/v1/papers", "/api/v1/papers"]
+    assert [path for path, _ in uploads] == ["/api/v1/papers", "/api/v1/papers"]
+    assert actual_names == expected_names
 
 
 def test_upload_dir_rejects_dry_run_with_yes(tmp_path: Path) -> None:

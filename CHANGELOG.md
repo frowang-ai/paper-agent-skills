@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Preview requires no API key and creates no remote papers or tasks. After reviewing the list with
   the user, pass `--yes` to upload; `--dry-run` is the explicit preview spelling and conflicts with
   `--yes`. Single-file `library upload` remains immediate. Filenames are not silently filtered.
+  Directory previews do not lock membership or content; after a directory preview, pass the confirmed
+  explicit paths to `upload-many --yes` because `upload-dir --yes` re-enumerates the directory.
 
 ## [0.9.7] - 2026-10-31
 

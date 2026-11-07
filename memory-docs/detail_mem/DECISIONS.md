@@ -181,6 +181,6 @@ not_for: "尚未定论的想法、操作规则或当前状态"
 ### DEC-024：批量上传默认本地预览，明确确认后才写远程库（2026-11-07）
 
 - 背景：2026-11-05 生产排查发现，外部 Agent 通过 API Key 将论文项目目录中的正文、图件和其他 PDF 批量提交为主库独立论文。`upload-dir` 的“目录当前层全部 PDF”语义本身符合代码文档，但 `paper-library` 没有像 Zotero 导入那样要求 dry-run、展示规模并取得用户同意，Agent 容易把“上传论文”扩大为“上传目录所有 PDF”。
-- 决策：`upload-many` 和 `upload-dir` 不带 `--yes` 时统一只返回本地预览；`--dry-run` 为显式预览，预览不需要 API Key、不发网络请求、不创建 Paper 或 Task。Agent 必须向用户展示完整清单和 `would_upload/skipped`，取得明确同意后以相同路径加 `--yes` 执行。单篇 `upload` 保持立即上传。不按文件名猜测正文并静默过滤。
-- 理由：写远程库和后续 OCR/报告会消耗积分，图件等 PDF 也会被当成独立论文；用户确认必须发生在实际副作用之前。CLI 默认安全比只依赖 Skill 文案更能防止不同 Agent 忽略编排指引。
+- 决策：`upload-many` 和 `upload-dir` 不带 `--yes` 时统一只返回本地预览；`--dry-run` 为显式预览，预览不需要 API Key、不发网络请求、不创建 Paper 或 Task。Agent 必须向用户展示完整清单和 `would_upload/skipped`，取得明确同意后以已确认的明确路径执行 `upload-many --yes`。目录预览不锁定成员或内容；`upload-dir --yes` 会重新枚举目录，仅在用户接受执行时目录状态时使用。单篇 `upload` 保持立即上传。不按文件名猜测正文并静默过滤。
+- 理由：写远程库和后续 OCR/报告会消耗积分，图件等 PDF 也会被当成独立论文；用户确认必须发生在实际副作用之前。CLI 默认安全比只依赖 Skill 文案更能防止不同 Agent 忽略编排指引；独立审核指出目录重枚举缺口后，明确路径成为目录预览后的推荐执行方式，不引入复杂快照机制。
 - 影响：批量命令的旧“直接上传”调用需要改为预览后加 `--yes`；预览响应新增 `dry_run/confirmation_required/would_upload`，正式响应也携带这些字段以便区分执行阶段。Skill、API surface、CHANGELOG 和回归测试同步维护。

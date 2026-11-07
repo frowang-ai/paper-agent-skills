@@ -34,20 +34,20 @@ not_for: "当前发布状态（-> STATUS）、稳定规则（-> CONVENTIONS 与 
 
 ## 新协议
 
-`upload-many` 和 `upload-dir` 现在遵循同一规则：
+`upload-many` 和 `upload-dir` 现在遵循同一预览规则：
 
 ```bash
 # 默认就是本地预览；--dry-run 是显式写法
 paper-agent library upload-dir ./pdfs --dry-run
 
-# 用户确认同一份清单后才真正上传
-paper-agent library upload-dir ./pdfs --yes
+# 用户确认清单后，用已确认的明确路径上传，避免目录新增文件混入
+paper-agent library upload-many ./pdfs/a.pdf ./pdfs/b.pdf --yes
 ```
 
 - 不带 `--yes`：只预览，不需要 API Key，不发网络请求，不创建 Paper、Task 或 OCR 消费。
-- `--yes`：按相同路径执行原批量上传逻辑。
-- `--yes` 与 `--dry-run` 同时使用：返回 `USAGE_ERROR`。
-- `upload-dir` 仍只处理目录当前层 PDF，不递归子目录。
+- `--yes`：执行原批量上传逻辑；与 `--dry-run` 同时使用返回 `USAGE_ERROR`。
+- `upload-dir` 仍只处理目录当前层 PDF，不递归子目录。目录预览不锁定成员或文件内容；
+  `upload-dir --yes` 会重新枚举执行时目录，只在用户明确接受该行为时使用。
 - 预览逐项返回 `pending/skipped`，汇总 `would_upload/skipped`，并带
   `dry_run=true`、`confirmation_required=true`。
 - 正式响应带 `dry_run=false`、`confirmation_required=false`；`would_upload` 表示实际尝试
@@ -64,24 +64,44 @@ paper-agent library upload-dir ./pdfs --yes
 
 ## 验证
 
-新增 `tests/test_library_upload_preview.py` 5 项：
+`tests/test_library_upload_preview.py` 最终为 **9 项**：
 
 1. Service 预览正确区分 PDF、非 PDF 和缺失文件，Client 零调用。
 2. `upload-dir` 默认预览不需要凭据，正文与图件都列入清单，非 PDF 和子目录不进入。
 3. `upload-many` 默认预览不需要凭据，保持用户给出的文件顺序。
-4. `upload-dir --yes` 通过本地 HTTP Server 验证只上传预览中的 PDF，并返回真实执行字段。
-5. `--dry-run --yes` 返回 `USAGE_ERROR`。
+4. 两个命令的默认预览和显式 `--dry-run` 共 4 个参数化场景均禁止配置管理器、远程服务及
+   HTTP Client 构造；子进程环境也会清除宿主 `FROWANG_API_KEY/PAPER_API_KEY`。
+5. 先执行目录预览，再执行 `upload-dir --yes`，通过本地 HTTP Server 检查 multipart 中的
+   实际文件名与预览清单完全一致，预览阶段服务器零请求。
+6. `--dry-run --yes` 返回 `USAGE_ERROR`。
 
-测试驱动证据：实现前新增测试为 **4 failed / 1 passed**，失败点分别为缺少
-`preview_many`、批量命令仍要求凭据以及不识别 `--yes`；实现后目标测试 **5 passed**。
+测试驱动证据：首轮实现前新增测试为 **4 failed / 1 passed**，失败点分别为缺少
+`preview_many`、批量命令仍要求凭据以及不识别 `--yes`；首轮实现后目标测试 5 passed，
+独立审核加强证据后目标测试 **9 passed**。
 
-完整检查：
+审核后的完整检查：
 
-- `PYTHONUTF8=1 uv run --frozen --extra dev pytest -q`：**192 passed**。
+- `PYTHONUTF8=1 uv run --frozen --extra dev pytest -q`：**196 passed**。
 - `uv run --frozen --extra dev ruff check src tests`：通过。
 - `uv build`：wheel 与 sdist 构建通过。
-- 首次不带 `PYTHONUTF8=1` 的全量测试为 191 passed / 1 failed；失败是既有 Windows GBK
+- 首轮不带 `PYTHONUTF8=1` 的全量测试为 191 passed / 1 failed；失败是既有 Windows GBK
   子进程帮助文本解码问题，与本次上传逻辑无关，随后按项目既有 UTF-8 口径全量通过。
+
+## 独立审核与处置
+
+- Paseo `evomap/gpt-6.1-sol`、xhigh 审核 `main...8b3b2b2`，结论为 **PASS WITH CHANGES**，
+  未发现 P0/P1；审核代理为 `4a57212b-0080-48c8-bc7a-a747fac72727`，只读，未修改文件。
+- 两条 P2 均接受：其一，目录在预览后可能新增 PDF，`upload-dir --yes` 重枚举使确认清单与
+  执行清单不同；其二，首轮测试未充分证明整个 CLI 不读取配置/凭据，也未检查 multipart
+  实际文件名。
+- 处置：Skill 改为目录预览后推荐用已确认的明确路径执行 `upload-many --yes`，明确预览不
+  锁定成员或内容，不引入快照机制；CLI 帮助说明目录会重枚举。新增 4 个禁止配置/远程构造
+  的参数化测试，实际执行测试先预览并核对文件名，最终 196 项全量测试通过。
+- 审核代理另执行 22 个内存检查，覆盖真实 Typer 参数解析、预览/确认分支、终端输出和参数
+  冲突；其未重复全量测试。上述 196 项、Ruff 和构建由主 Agent 在修正后执行。
+- 保留边界：`--yes` 只代表调用者声明已获确认，CLI 无法核实用户是否看过清单；单文件循环、
+  直接 HTTP、MCP 和旧安装版仍可直接上传。预览只检查文件存在和扩展名，不验证 PDF 内容、
+  服务器接受结果或实际积分消耗。
 
 ## 发布边界与回退
 

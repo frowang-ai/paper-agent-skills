@@ -1213,7 +1213,7 @@ def library_upload_dir(
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
-    """Preview every PDF directly in a directory; use --yes to upload them."""
+    """Preview directory PDFs; --yes re-enumerates and uploads the current directory."""
     _ACTIVE_COMMAND.set("library.upload-dir")
     path = directory.expanduser().resolve()
     if not path.is_dir():
