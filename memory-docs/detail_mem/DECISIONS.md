@@ -177,3 +177,10 @@ not_for: "尚未定论的想法、操作规则或当前状态"
 - 决策：否决 mega hub 主架构；分发单位演进为 Plugin（plugin-build 能力转正），skill 保持独立 discovery 入口；规模化到几十个 skill 且 trigger eval 显示下降时，再聚合为 3-5 个 domain gateway + 目录内 references 渐进加载。宏观计划见 `docs/skill-distribution-roadmap.md`，调研依据见 `docs/gpt调研.md`。
 - 理由：description 是每个功能最有价值的触发入口；Plugin 天然是"一个安装入口、多个 skill"；hub 方案会自建 discovery 层与宿主平台演化冲突，且跨沙箱/云端不可靠。
 - 影响：新 skill 一律薄壳（代码进 runtime，manifest 白名单兜底）；citation-audit 等意图清晰的能力保留独立 skill；近期需处理 Codex user skill 路径向 `$HOME/.agents/skills` 迁移的兼容。
+
+### DEC-024：批量上传仅接受明确路径，默认预览并要求确认（2026-11-07）
+
+- 背景：2026-11-05 生产排查发现，外部 Agent 通过 API Key 将论文项目目录中的正文、图件和其他 PDF 批量提交为主库独立论文。`upload-dir` 的“目录当前层全部 PDF”语义本身符合旧代码文档，但 `paper-library` 没有像 Zotero 导入那样要求 dry-run、展示规模并取得用户同意，Agent 容易把“上传论文”扩大为“上传目录所有 PDF”。
+- 决策：移除 `upload-dir`，不新增发现命令；Coding Agent 使用自身文件工具发现候选、向用户展示清单，取得明确同意后以绝对路径执行 `upload-many --yes`。`upload-many` 不带 `--yes` 时只返回本地预览，`--dry-run` 为显式预览，预览不需要 API Key、不发网络请求、不创建 Paper 或 Task。单篇 `upload` 保持立即上传，不按文件名猜测正文并静默过滤。
+- 理由：写远程库和后续 OCR/报告会消耗积分，用户确认必须发生在实际副作用之前。现代 Coding Agent 已能发现文件，无需 CLI 再提供目录扫描；CLI 的 help、工具输出和错误应承担自描述职责，Skill 保持精简。绝对路径可避免 Agent 误用进程 cwd；错误需同时给出输入路径、解析路径、cwd 和修正方式。
+- 影响：旧 `upload-dir` 调用必须迁移为 Agent 自行发现后调用 `upload-many`。预览响应新增 `dry_run/confirmation_required/would_upload/next_action`；全部文件无效时执行拒绝且零远程调用，部分无效保留逐项 `skipped/error`。Skill、API surface、CHANGELOG 和回归测试同步维护。

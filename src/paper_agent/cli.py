@@ -1145,54 +1145,75 @@ def library_download_asset(
 @library_app.command("upload")
 def library_upload(
     ctx: typer.Context,
-    file: Annotated[Path, typer.Argument(help="PDF path.")],
+    file: Annotated[
+        Path,
+        typer.Argument(help="Explicit PDF path; absolute paths are recommended for agents."),
+    ],
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
-    """Upload a PDF to the remote library.
+    """Upload one explicitly selected PDF to the remote library.
 
-    Creates remote paper state; server-side processing (metadata, full text)
-    runs asynchronously after upload.
+    Relative paths resolve against the paper-agent process working directory, not the user's
+    project directory. Agents should pass an absolute path. Remote processing runs asynchronously.
     """
     _ACTIVE_COMMAND.set("library.upload")
     data = _library_service(ctx).upload(file)
     _library_success("library.upload", data, json_output=json_output, human=human)
 
 
+def _upload_many_with_confirmation(
+    ctx: typer.Context,
+    files: list[Path],
+    *,
+    yes: bool,
+    dry_run: bool,
+) -> dict[str, Any]:
+    if yes and dry_run:
+        raise CommandError(
+            code=ErrorCode.USAGE_ERROR,
+            message="Use --dry-run to preview or --yes to upload, not both.",
+            exit_code=ExitCode.USAGE_ERROR,
+        )
+    preview = LibraryService.preview_many(files)
+    if yes:
+        LibraryService.validate_many(preview["results"])
+        return _library_service(ctx).upload_many(files)
+    return preview
+
+
 @library_app.command("upload-many")
 def library_upload_many(
     ctx: typer.Context,
-    files: Annotated[list[Path], typer.Argument(help="PDF paths.")],
+    files: Annotated[
+        list[Path],
+        typer.Argument(help="Explicit PDF paths; absolute paths are recommended for agents."),
+    ],
+    yes: Annotated[
+        bool,
+        typer.Option("--yes", help="Upload after the user explicitly confirms these files."),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Preview locally without credentials or network calls."),
+    ] = False,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
-    """Upload several PDFs to the remote library in one call."""
+    """Preview explicitly selected PDFs; upload only with --yes after user confirmation.
+
+    Agents discover candidates with their own file tools and show the list to the user. This
+    command never scans a directory. Relative paths resolve against the paper-agent process
+    working directory, not the user's project directory; agents should use absolute paths.
+
+    Example: paper-agent library upload-many /abs/main.pdf /abs/appendix.pdf --yes
+
+    Without --yes, the command only previews and requires no credentials or network calls.
+    Inspect every result: skipped or error entries must not be reported as successful uploads.
+    """
     _ACTIVE_COMMAND.set("library.upload-many")
-    data = _library_service(ctx).upload_many(files)
+    data = _upload_many_with_confirmation(ctx, files, yes=yes, dry_run=dry_run)
     _library_success("library.upload-many", data, json_output=json_output, human=human)
-
-
-@library_app.command("upload-dir")
-def library_upload_dir(
-    ctx: typer.Context,
-    directory: Annotated[Path, typer.Argument(help="Directory containing PDFs.")],
-    json_output: JsonOption = False,
-    human: HumanOption = False,
-) -> None:
-    """Upload every PDF found directly in a directory (not recursive)."""
-    _ACTIVE_COMMAND.set("library.upload-dir")
-    path = directory.expanduser().resolve()
-    if not path.is_dir():
-        raise CommandError(
-            code=ErrorCode.USAGE_ERROR,
-            message="Upload directory does not exist",
-            exit_code=ExitCode.USAGE_ERROR,
-            details={"path": str(path)},
-        )
-    data = _library_service(ctx).upload_many(
-        sorted(item for item in path.iterdir() if item.suffix.lower() == ".pdf")
-    )
-    _library_success("library.upload-dir", data, json_output=json_output, human=human)
 
 
 @library_app.command("reprocess")

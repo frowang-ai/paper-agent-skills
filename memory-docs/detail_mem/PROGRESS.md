@@ -28,6 +28,7 @@ not_for: "长期架构理由、代码目录导航或项目历史"
 - 入口：`src/paper_agent/clients/frowang.py`、`services/library_service.py`。
 - 搜索口径：默认 L1+L2 discovery；新论文不自动建立 L3。
 - 2026-10-04：网站资源鉴权升级后的真实 API Key 读取验证通过；流式拒绝错误体修复 `87a1f65` 已入 main、未发 PyPI，安装版 0.9.5 的正常读取与错误提示状态必须分开描述。详见 [验证记录](../HISTORY.md#asset-auth-20261004)。
+- 2026-11-07：移除 `upload-dir`，仅保留明确路径的 `upload/upload-many`；批量默认本地预览，确认后传绝对路径加 `--yes`，并强化英文 help、`next_action` 和路径错误。防止 Agent 将图件等 PDF 未经确认全部写入主库；尚未发布 PyPI。决策见 DEC-024，案例与验证归 [专项记录](../archive/20261107_library_upload_preview.md)。
 
 ### Phase 2 补充：协作作用域与原文批注（0.9.3–0.9.5）
 
