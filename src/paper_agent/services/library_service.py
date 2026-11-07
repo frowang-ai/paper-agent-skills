@@ -235,9 +235,20 @@ class LibraryService:
     def upload(self, file: Path, *, filename: Optional[str] = None) -> Any:
         path = file.expanduser().resolve()
         if not path.is_file():
-            raise _usage("PDF file does not exist", path=str(path))
+            raise _usage(
+                "PDF file does not exist. Relative paths are resolved against the paper-agent "
+                "process working directory, not the user's project directory. "
+                "Pass an absolute path to an existing PDF.",
+                path=str(path),
+                input_path=str(file),
+                cwd=str(Path.cwd()),
+            )
         if path.suffix.lower() != ".pdf":
-            raise _usage("Upload file must be a PDF", path=str(path))
+            raise _usage(
+                "Upload file must be a PDF with a .pdf extension. Pass the path to a PDF file.",
+                path=str(path),
+                input_path=str(file),
+            )
         upload_name = filename or path.name
         if Path(upload_name).name != upload_name or not upload_name.lower().endswith(".pdf"):
             raise _usage("Upload filename must be a plain PDF filename", filename=upload_name)
@@ -259,18 +270,35 @@ class LibraryService:
         return _unwrap(response)
 
     @staticmethod
+    def _preview_file(file: Path) -> dict[str, Any]:
+        path = file.expanduser().resolve()
+        entry: dict[str, Any] = {"file": path.name, "path": str(path)}
+        if not path.is_file():
+            entry.update(
+                status="skipped",
+                error_code="FILE_NOT_FOUND",
+                reason=(
+                    "PDF file does not exist. Relative paths are resolved against the paper-agent "
+                    "process working directory, not the user's project directory. "
+                    "Pass an absolute path to an existing PDF."
+                ),
+                input_path=str(file),
+                cwd=str(Path.cwd()),
+            )
+        elif path.suffix.lower() != ".pdf":
+            entry.update(
+                status="skipped",
+                error_code="NOT_A_PDF",
+                reason="File is not a PDF. Pass a file with a .pdf extension.",
+                input_path=str(file),
+            )
+        else:
+            entry.update(status="pending")
+        return entry
+
+    @staticmethod
     def preview_many(files: Iterable[Path]) -> dict[str, Any]:
-        results: list[dict[str, Any]] = []
-        for file in files:
-            path = file.expanduser().resolve()
-            entry: dict[str, Any] = {"file": path.name, "path": str(path)}
-            if not path.is_file():
-                entry.update(status="skipped", reason="file not found")
-            elif path.suffix.lower() != ".pdf":
-                entry.update(status="skipped", reason="not a PDF")
-            else:
-                entry.update(status="pending")
-            results.append(entry)
+        results = [LibraryService._preview_file(file) for file in files]
         return {
             "results": results,
             "total": len(results),
@@ -281,32 +309,41 @@ class LibraryService:
             "errors": 0,
             "dry_run": True,
             "confirmation_required": True,
+            "next_action": (
+                "Review these files with the user. After explicit confirmation, rerun upload-many "
+                "with the same absolute paths and --yes. Relative paths are resolved against the "
+                "paper-agent process working directory."
+            ),
         }
 
     def upload_many(self, files: Iterable[Path]) -> dict[str, Any]:
-        results: list[dict[str, Any]] = []
-        for file in files:
-            path = file.expanduser().resolve()
-            entry: dict[str, Any] = {"file": path.name, "path": str(path)}
-            if not path.is_file():
-                entry.update(status="skipped", reason="file not found")
-            elif path.suffix.lower() != ".pdf":
-                entry.update(status="skipped", reason="not a PDF")
-            else:
-                try:
-                    data = self.upload(path)
-                    remote = data if isinstance(data, dict) else {}
-                    is_new = remote.get("is_new", True)
-                    entry.update(
-                        status="uploaded" if is_new else "duplicate",
-                        paper_id=remote.get("paper_id"),
-                        short_id=remote.get("short_id"),
-                        task_id=remote.get("task_id"),
-                        is_new=is_new,
-                    )
-                except CommandError as exc:
-                    entry.update(status="error", reason=exc.message, error_code=exc.code.value)
-            results.append(entry)
+        results = [self._preview_file(file) for file in files]
+        if not any(item["status"] == "pending" for item in results):
+            raise CommandError(
+                code=ErrorCode.USAGE_ERROR,
+                message=(
+                    "No valid PDF files to upload. Review the per-file errors and pass absolute "
+                    "paths to existing files with a .pdf extension. No upload was performed."
+                ),
+                exit_code=ExitCode.USAGE_ERROR,
+                details={"results": results},
+            )
+        for entry in results:
+            if entry["status"] != "pending":
+                continue
+            try:
+                data = self.upload(Path(entry["path"]))
+                remote = data if isinstance(data, dict) else {}
+                is_new = remote.get("is_new", True)
+                entry.update(
+                    status="uploaded" if is_new else "duplicate",
+                    paper_id=remote.get("paper_id"),
+                    short_id=remote.get("short_id"),
+                    task_id=remote.get("task_id"),
+                    is_new=is_new,
+                )
+            except CommandError as exc:
+                entry.update(status="error", reason=exc.message, error_code=exc.code.value)
         return {
             "results": results,
             "total": len(results),

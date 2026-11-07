@@ -34,54 +34,60 @@ not_for: "当前发布状态（-> STATUS）、稳定规则（-> CONVENTIONS 与 
 
 ## 新协议
 
-`upload-many` 和 `upload-dir` 现在遵循同一预览规则：
+`upload-dir` 已移除，不新增发现命令。Coding Agent 使用自身文件工具发现候选，向用户展示
+清单和建议，取得明确同意后传绝对路径：
 
 ```bash
-# 默认就是本地预览；--dry-run 是显式写法
-paper-agent library upload-dir ./pdfs --dry-run
+# 可选预览；不带 --yes 时默认也是相同的本地预览
+paper-agent library upload-many /absolute/path/a.pdf /absolute/path/b.pdf --dry-run
 
-# 用户确认清单后，用已确认的明确路径上传，避免目录新增文件混入
-paper-agent library upload-many ./pdfs/a.pdf ./pdfs/b.pdf --yes
+# 用户确认明确路径后正式上传
+paper-agent library upload-many /absolute/path/a.pdf /absolute/path/b.pdf --yes
 ```
 
 - 不带 `--yes`：只预览，不需要 API Key，不发网络请求，不创建 Paper、Task 或 OCR 消费。
-- `--yes`：执行原批量上传逻辑；与 `--dry-run` 同时使用返回 `USAGE_ERROR`。
-- `upload-dir` 仍只处理目录当前层 PDF，不递归子目录。目录预览不锁定成员或文件内容；
-  `upload-dir --yes` 会重新枚举执行时目录，只在用户明确接受该行为时使用。
+- `--yes`：只上传明确路径；与 `--dry-run` 同时使用返回 `USAGE_ERROR`。
+- 相对路径按 paper-agent 进程 cwd 解析，不是用户项目目录；Agent 必须传绝对路径。
 - 预览逐项返回 `pending/skipped`，汇总 `would_upload/skipped`，并带
-  `dry_run=true`、`confirmation_required=true`。
+  `dry_run=true`、`confirmation_required=true` 和英文 `next_action`。
+- 文件不存在时返回 `FILE_NOT_FOUND`，非 PDF 返回 `NOT_A_PDF`，同时给出输入路径、解析路径、
+  cwd（缺失文件）和英文修正说明。全部无效时执行返回 `USAGE_ERROR` 且零远程调用；部分无效
+  保留逐项结果，不能汇报成全部成功。
 - 正式响应带 `dry_run=false`、`confirmation_required=false`；`would_upload` 表示实际尝试
   上传的合法 PDF 数，原有 `uploaded/duplicate/skipped/errors` 保留。
 
 核心实现：
 
-- `src/paper_agent/services/library_service.py`：`LibraryService.preview_many()` 纯本地分类；
-  `upload_many()` 保留原上传流程并补充执行阶段字段。
-- `src/paper_agent/cli.py`：两个批量命令共享确认分支，只有 `--yes` 才构造远程服务并写库。
-- `skills/paper-library/SKILL.md`：强制“预览 → 展示清单和数量 → 用户明确同意 → `--yes`”。
+- `src/paper_agent/services/library_service.py`：共享逐项预览分类，批量执行复用相同路径与
+  错误语义；`next_action` 和路径错误直接指导 Agent 修正。
+- `src/paper_agent/cli.py`：仅保留 `upload/upload-many`，英文 help 明确发现职责、绝对路径、
+  预览和确认边界，只有 `--yes` 才构造远程服务并写库。
+- `skills/paper-library/SKILL.md`：只保留 Agent 自行发现、用户确认、绝对路径和结果检查规则，
+  详细契约交给 CLI 自描述。
 - `docs/API_SURFACE.md`、`skills/paper-library/references/api-endpoints.md`、CHANGELOG、
   CONVENTIONS、PROGRESS 与 DEC-024 同步记录合同。
 
 ## 验证
 
-`tests/test_library_upload_preview.py` 最终为 **9 项**：
+`tests/test_library_upload_preview.py` 当前为 **10 项**：
 
-1. Service 预览正确区分 PDF、非 PDF 和缺失文件，Client 零调用。
-2. `upload-dir` 默认预览不需要凭据，正文与图件都列入清单，非 PDF 和子目录不进入。
-3. `upload-many` 默认预览不需要凭据，保持用户给出的文件顺序。
-4. 两个命令的默认预览和显式 `--dry-run` 共 4 个参数化场景均禁止配置管理器、远程服务及
-   HTTP Client 构造；子进程环境也会清除宿主 `FROWANG_API_KEY/PAPER_API_KEY`。
-5. 先执行目录预览，再执行 `upload-dir --yes`，通过本地 HTTP Server 检查 multipart 中的
-   实际文件名与预览清单完全一致，预览阶段服务器零请求。
-6. `--dry-run --yes` 返回 `USAGE_ERROR`。
+1. 预览分类及 `FILE_NOT_FOUND/NOT_A_PDF`、输入路径、解析路径、cwd 和 `next_action`。
+2. `upload-many` 默认预览不需要凭据，保持用户给出的文件顺序。
+3. 默认预览和显式 `--dry-run` 两个参数化场景均禁止配置管理器、远程服务及 HTTP Client 构造。
+4. 先预览再执行 `upload-many --yes`，通过本地 HTTP Server 检查 multipart 实际文件名与预览
+   完全一致，预览阶段服务器零请求。
+5. `--dry-run --yes` 返回 `USAGE_ERROR`。
+6. 全部文件无效时拒绝执行且 Client 零调用；部分无效时合法 PDF 上传、其余逐项标为 skipped。
+7. 单篇缺失文件报错包含 cwd、输入路径、解析路径和绝对路径修正建议。
+8. help 展示 Agent 契约，且 `upload-dir` 不再出现在命令列表。
 
 测试驱动证据：首轮实现前新增测试为 **4 failed / 1 passed**，失败点分别为缺少
 `preview_many`、批量命令仍要求凭据以及不识别 `--yes`；首轮实现后目标测试 5 passed，
-独立审核加强证据后目标测试 **9 passed**。
+独立审核加强证据后为 9 passed，收敛为明确路径和 Agent-native 错误后为 **10 passed**。
 
-审核后的完整检查：
+收敛后的完整检查：
 
-- `PYTHONUTF8=1 uv run --frozen --extra dev pytest -q`：**196 passed**。
+- `PYTHONUTF8=1 uv run --frozen --extra dev pytest -q`：**197 passed**。
 - `uv run --frozen --extra dev ruff check src tests`：通过。
 - `uv build`：wheel 与 sdist 构建通过。
 - 首轮不带 `PYTHONUTF8=1` 的全量测试为 191 passed / 1 failed；失败是既有 Windows GBK
@@ -103,14 +109,25 @@ paper-agent library upload-many ./pdfs/a.pdf ./pdfs/b.pdf --yes
   直接 HTTP、MCP 和旧安装版仍可直接上传。预览只检查文件存在和扩展名，不验证 PDF 内容、
   服务器接受结果或实际积分消耗。
 
+## PR 收敛：明确路径与 Agent-native 自描述
+
+首轮审核修正后，用户进一步指出 `upload-dir` 的 Upload All 语义仍过于霸道，且现代 Coding
+Agent 已能自行发现文件，不需要额外 discovery 命令。PR 因此移除 `upload-dir`，只保留明确
+路径的 `upload/upload-many`。Agent 自行发现候选，用户确认，CLI 只执行确认后的绝对路径。
+
+同时采用“help、工具输出、错误”三层自描述：英文 `--help` 说明职责和示例，预览 `next_action`
+说明下一步，路径错误给出 `input_path/resolved_path/cwd` 和修正建议。Skill 不再重复长文契约。
+全部无效时执行明确失败且零远程调用，部分无效保留逐项状态，避免 Agent 误报全部成功。
+
 ## 发布边界与回退
 
 - 本次改动位于独立 worktree `_worktrees/paper-upload-preview` 和任务分支
   `feat/library-upload-preview`；不代表 PyPI 已发布、用户已安装或生产用户已更新 Skill。
 - 安装版只有在后续发布 Runtime 并刷新已安装 Skill 后才获得新行为；不能将本地测试通过
   描述成线上误传风险已经消除。
-- 批量命令旧的直接上传调用需要有意识地改为预览后加 `--yes`，这是为防止积分消耗和误传
-  而作出的行为变更；单篇上传、目录非递归语义及服务端 `/papers` API 均未改变。
+- 旧 `upload-dir` 调用需迁移为 Agent 自行发现后传明确路径；`upload-many` 旧调用需要预览后
+  加 `--yes`。这些是为防止积分消耗和误传而作出的行为变更；单篇上传及服务端 `/papers` API
+  未改变。
 - MCP 的上传工具不在本次改动范围内。
 - 如需回退，还原上述 CLI、Service 和 Skill 合同即可；本次没有数据库迁移、远程状态变更
   或用户文件迁移。

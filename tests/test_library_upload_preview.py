@@ -12,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from paper_agent import cli
+from paper_agent.protocol import CommandError, ErrorCode
 from paper_agent.services import LibraryService
 
 
@@ -52,15 +53,19 @@ def _run(tmp_path: Path, *args: str, **extra: str) -> subprocess.CompletedProces
     )
 
 
-def test_preview_many_classifies_files_without_network(tmp_path: Path) -> None:
+def test_preview_many_classifies_files_and_explains_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = _FakeClient()
     service = LibraryService(client)  # type: ignore[arg-type]
-    pdf = tmp_path / "main.pdf"
-    pdf.write_bytes(b"%PDF-1.4\n")
-    text = tmp_path / "notes.txt"
-    text.write_text("notes", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "main.pdf").write_bytes(b"%PDF-1.4\n")
+    (tmp_path / "notes.txt").write_text("notes", encoding="utf-8")
 
-    result = service.preview_many([pdf, text, tmp_path / "missing.pdf"])
+    result = service.preview_many(
+        [Path("main.pdf"), Path("notes.txt"), Path("missing.pdf")]
+    )
 
     assert result["dry_run"] is True
     assert result["confirmation_required"] is True
@@ -72,32 +77,17 @@ def test_preview_many_classifies_files_without_network(tmp_path: Path) -> None:
         "skipped",
         "skipped",
     ]
+    assert result["results"][0]["path"] == str((tmp_path / "main.pdf").resolve())
+    assert result["results"][1]["error_code"] == "NOT_A_PDF"
+    missing = result["results"][2]
+    assert missing["error_code"] == "FILE_NOT_FOUND"
+    assert missing["input_path"] == "missing.pdf"
+    assert missing["path"] == str((tmp_path / "missing.pdf").resolve())
+    assert missing["cwd"] == str(tmp_path)
+    assert "working directory" in missing["reason"]
+    assert "absolute path" in missing["reason"]
+    assert "same absolute paths" in result["next_action"]
     assert client.calls == []
-
-
-def test_upload_dir_defaults_to_preview_without_credentials(tmp_path: Path) -> None:
-    documents = tmp_path / "documents"
-    documents.mkdir()
-    for name in ("main.pdf", "fig1_policy.pdf"):
-        (documents / name).write_bytes(b"%PDF-1.4\n")
-    (documents / "notes.txt").write_text("notes", encoding="utf-8")
-    nested = documents / "nested"
-    nested.mkdir()
-    (nested / "nested.pdf").write_bytes(b"%PDF-1.4\n")
-
-    result = _run(tmp_path, "library", "upload-dir", str(documents))
-    payload = json.loads(result.stdout)
-
-    assert result.returncode == 0, result.stderr
-    assert payload["data"]["dry_run"] is True
-    assert payload["data"]["confirmation_required"] is True
-    assert payload["data"]["would_upload"] == 2
-    assert [item["file"] for item in payload["data"]["results"]] == [
-        "fig1_policy.pdf",
-        "main.pdf",
-    ]
-    assert all(item["status"] == "pending" for item in payload["data"]["results"])
-    assert payload["meta"]["command"] == "library.upload-dir"
 
 
 def test_upload_many_defaults_to_preview_without_credentials(tmp_path: Path) -> None:
@@ -109,6 +99,8 @@ def test_upload_many_defaults_to_preview_without_credentials(tmp_path: Path) -> 
     payload = json.loads(result.stdout)
 
     assert result.returncode == 0, result.stderr
+    assert payload["data"]["dry_run"] is True
+    assert payload["data"]["confirmation_required"] is True
     assert payload["data"]["would_upload"] == 2
     assert [item["file"] for item in payload["data"]["results"]] == [
         "main.pdf",
@@ -117,19 +109,14 @@ def test_upload_many_defaults_to_preview_without_credentials(tmp_path: Path) -> 
     assert payload["meta"]["command"] == "library.upload-many"
 
 
-@pytest.mark.parametrize("command", ["upload-dir", "upload-many"])
 @pytest.mark.parametrize("flags", [[], ["--dry-run"]])
 def test_preview_never_loads_config_or_constructs_remote_service(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    command: str,
     flags: list[str],
 ) -> None:
-    documents = tmp_path / "documents"
-    documents.mkdir()
-    pdf = documents / "main.pdf"
+    pdf = tmp_path / "main.pdf"
     pdf.write_bytes(b"%PDF-1.4\n")
-    target = documents if command == "upload-dir" else pdf
 
     def fail(_=None):
         raise AssertionError("preview must not load config, credentials, or remote services")
@@ -140,7 +127,7 @@ def test_preview_never_loads_config_or_constructs_remote_service(
 
     result = CliRunner().invoke(
         cli.app,
-        ["library", command, str(target), *flags, "--json"],
+        ["library", "upload-many", str(pdf), *flags, "--json"],
     )
     payload = json.loads(result.output)
 
@@ -149,7 +136,7 @@ def test_preview_never_loads_config_or_constructs_remote_service(
     assert payload["data"]["would_upload"] == 1
 
 
-def test_upload_dir_yes_uploads_exact_preview_filenames(tmp_path: Path) -> None:
+def test_upload_many_yes_uploads_exact_preview_filenames(tmp_path: Path) -> None:
     uploads: list[tuple[str, bytes]] = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -179,12 +166,11 @@ def test_upload_dir_yes_uploads_exact_preview_filenames(tmp_path: Path) -> None:
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    documents = tmp_path / "documents"
-    documents.mkdir()
-    for name in ("main.pdf", "figure.pdf"):
-        (documents / name).write_bytes(b"%PDF-1.4\n")
+    files = [tmp_path / name for name in ("main.pdf", "figure.pdf")]
+    for file in files:
+        file.write_bytes(b"%PDF-1.4\n")
     try:
-        preview = _run(tmp_path, "library", "upload-dir", str(documents))
+        preview = _run(tmp_path, "library", "upload-many", *(str(file) for file in files))
         preview_payload = json.loads(preview.stdout)
         expected_names = [item["file"] for item in preview_payload["data"]["results"]]
         assert preview.returncode == 0, preview.stderr
@@ -197,8 +183,8 @@ def test_upload_dir_yes_uploads_exact_preview_filenames(tmp_path: Path) -> None:
             "library",
             "--base-url",
             base_url,
-            "upload-dir",
-            str(documents),
+            "upload-many",
+            *(str(file) for file in files),
             "--yes",
             FROWANG_API_KEY="pk_upload_preview_test",
         )
@@ -220,16 +206,15 @@ def test_upload_dir_yes_uploads_exact_preview_filenames(tmp_path: Path) -> None:
     assert actual_names == expected_names
 
 
-def test_upload_dir_rejects_dry_run_with_yes(tmp_path: Path) -> None:
-    documents = tmp_path / "documents"
-    documents.mkdir()
-    (documents / "main.pdf").write_bytes(b"%PDF-1.4\n")
+def test_upload_many_rejects_dry_run_with_yes(tmp_path: Path) -> None:
+    pdf = tmp_path / "main.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
 
     result = _run(
         tmp_path,
         "library",
-        "upload-dir",
-        str(documents),
+        "upload-many",
+        str(pdf),
         "--dry-run",
         "--yes",
     )
@@ -237,3 +222,76 @@ def test_upload_dir_rejects_dry_run_with_yes(tmp_path: Path) -> None:
 
     assert result.returncode == 2
     assert payload["error"]["code"] == "USAGE_ERROR"
+    assert "not both" in payload["error"]["message"]
+
+
+def test_upload_many_rejects_all_invalid_before_remote(tmp_path: Path) -> None:
+    client = _FakeClient()
+    service = LibraryService(client)  # type: ignore[arg-type]
+    text = tmp_path / "notes.txt"
+    text.write_text("notes", encoding="utf-8")
+
+    with pytest.raises(CommandError) as caught:
+        service.upload_many([text, tmp_path / "missing.pdf"])
+
+    assert caught.value.code == ErrorCode.USAGE_ERROR
+    assert "No valid PDF files to upload" in caught.value.message
+    assert "No upload was performed" in caught.value.message
+    assert [item["error_code"] for item in caught.value.details["results"]] == [
+        "NOT_A_PDF",
+        "FILE_NOT_FOUND",
+    ]
+    assert client.calls == []
+
+
+def test_upload_many_partial_invalid_uploads_valid_and_reports_skipped(tmp_path: Path) -> None:
+    client = _FakeClient()
+    service = LibraryService(client)  # type: ignore[arg-type]
+    pdf = tmp_path / "main.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    text = tmp_path / "notes.txt"
+    text.write_text("notes", encoding="utf-8")
+
+    result = service.upload_many([pdf, text])
+
+    assert result["uploaded"] == 1
+    assert result["skipped"] == 1
+    assert result["results"][1]["error_code"] == "NOT_A_PDF"
+    assert len(client.calls) == 1
+
+
+def test_single_upload_missing_file_reports_cwd_and_absolute_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = _FakeClient()
+    service = LibraryService(client)  # type: ignore[arg-type]
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(CommandError) as caught:
+        service.upload(Path("missing.pdf"))
+
+    assert caught.value.code == ErrorCode.USAGE_ERROR
+    assert "working directory" in caught.value.message
+    assert "absolute path" in caught.value.message
+    assert caught.value.details["input_path"] == "missing.pdf"
+    assert caught.value.details["path"] == str((tmp_path / "missing.pdf").resolve())
+    assert caught.value.details["cwd"] == str(tmp_path)
+    assert client.calls == []
+
+
+def test_library_help_exposes_agent_contract_and_removes_upload_dir() -> None:
+    runner = CliRunner()
+    library_help = runner.invoke(cli.app, ["library", "--help"])
+    upload_help = runner.invoke(cli.app, ["library", "upload-many", "--help"])
+    normalized = " ".join(upload_help.output.split())
+
+    assert library_help.exit_code == 0
+    assert "upload-many" in library_help.output
+    assert "upload-dir" not in library_help.output
+    assert upload_help.exit_code == 0
+    assert "never scans a directory" in normalized
+    assert "working directory" in normalized
+    assert "absolute paths" in normalized
+    assert "--yes" in normalized
+    assert "skipped or error entries" in normalized

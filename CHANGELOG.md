@@ -7,15 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **`library upload-dir` has been removed** so no command can upload an entire directory. Agents
+  discover candidates with their own file tools and pass only user-confirmed paths to `upload-many`.
+
 ### Changed
 
-- **Bulk uploads require explicit confirmation**: `library upload-many` and `library upload-dir`
-  now default to a local preview with the complete file list, `would_upload` and `skipped` counts.
-  Preview requires no API key and creates no remote papers or tasks. After reviewing the list with
-  the user, pass `--yes` to upload; `--dry-run` is the explicit preview spelling and conflicts with
-  `--yes`. Single-file `library upload` remains immediate. Filenames are not silently filtered.
-  Directory previews do not lock membership or content; after a directory preview, pass the confirmed
-  explicit paths to `upload-many --yes` because `upload-dir --yes` re-enumerates the directory.
+- **Bulk uploads require explicit confirmation**: `library upload-many` defaults to a local preview
+  with the complete file list, `would_upload` and `skipped` counts. Preview requires no API key or
+  network calls. After user confirmation, pass the same absolute paths with `--yes`; `--dry-run` is
+  the explicit preview spelling and conflicts with `--yes`. Single-file `library upload` remains
+  immediate. Relative-path errors now include the input path, resolved path and process cwd, with
+  actionable English guidance. Preview output includes `next_action`; all-invalid execution is
+  rejected before remote calls, while partial skips remain visible in per-file results.
 
 ## [0.9.7] - 2026-10-31
 

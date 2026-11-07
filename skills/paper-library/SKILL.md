@@ -59,40 +59,24 @@ paper-agent library search-layered "IV" --layer all --layers L1,L3
 
 ## 上传论文
 
-用户说“上传这篇论文”时，只上传用户明确指定的正文文件，不要把同目录的图件、附录或其他
-PDF 自行加入：
+只上传用户明确选择的文件，不要把同目录的图件、附录或其他 PDF 自行加入。单篇直接上传：
 
 ```bash
-paper-agent library upload ./paper.pdf
+paper-agent library upload /absolute/path/paper.pdf
 ```
 
-批量或目录上传会消耗积分，必须分两步。先预览完整文件名和数量；预览只在本地读取文件，
-不需要 API Key，也不会创建远程论文或任务：
+批量上传由 Agent 使用自身文件工具发现候选，向用户展示清单和建议，取得明确同意后，
+将确认后的**绝对路径**交给 `upload-many --yes`：
 
 ```bash
-paper-agent library upload-many ./a.pdf ./b.pdf --dry-run
-paper-agent library upload-dir ./pdfs --dry-run
+paper-agent library upload-many /absolute/path/a.pdf /absolute/path/b.pdf --yes
 ```
 
-向用户展示 `results` 中的文件清单及 `would_upload`、`skipped` 数量，明确指出图件等其他 PDF
-也会被当成独立论文上传。取得用户对这批文件的明确同意后，使用已确认的明确路径正式上传：
-
-```bash
-paper-agent library upload-many ./a.pdf ./b.pdf --yes
-```
-
-目录预览后，应把用户确认的文件逐个列给 `upload-many --yes`，例如
-`paper-agent library upload-many ./pdfs/a.pdf ./pdfs/b.pdf --yes`。不要把目录预览理解为清单快照：
-`upload-dir --yes` 会重新枚举执行时的目录，后加入的 PDF 也会进入上传；文件内容同样不会在预览时
-锁定。只有用户明确接受执行时的目录状态才使用 `upload-dir --yes`，清单或内容有变化时重新预览。
-
-`upload-many` 和 `upload-dir` 不带 `--yes` 时默认也只预览，不能直接用于正式上传。
-`upload-dir` 只处理目录当前层的 PDF，不递归子目录。不要根据 `fig`、`图` 等文件名静默排除；
-如清单包含非目标文件，应由用户明确选择正文路径后改用单篇 `upload`，或重新确认批量清单。
-`--yes` 与 `--dry-run` 不能同时使用。
-
-正式上传逐文件返回 `uploaded`、`duplicate`、`skipped` 或 `error`。上传成功后保存返回的
-`short_id`、`paper_id` 和 `task_id`；OCR 尚未完成时，内容命令可能返回 `NOT_READY`。
+`upload-many` 不带 `--yes` 时只在本地预览，不需要 API Key 或网络请求；需要先看清单时可直接
+省略该标志或显式使用 `--dry-run`。相对路径按 paper-agent 进程 cwd 解析，不是用户项目目录，
+因此 Agent 应始终传绝对路径。调用前用 `paper-agent library upload-many --help` 查看英文契约；
+逐文件错误会说明失败原因、输入路径、解析路径和修正方式。部分 `skipped/error` 不是全部成功。
+正式上传后保存 `short_id`、`paper_id` 和 `task_id`；OCR 未完成时内容命令可能返回 `NOT_READY`。
 
 ## 获取内容
 

@@ -37,7 +37,7 @@
 
 | 后端路由 | CLI 命令 | MCP tool | 状态 |
 |---------|---------|----------|------|
-| `POST /papers` | `paper-agent library upload`；`upload-many/upload-dir --yes` | `upload_paper` / `batch_upload_papers` | ✅ 三端；CLI 批量命令默认仅预览 |
+| `POST /papers` | `paper-agent library upload`；`upload-many FILES... --yes` | `upload_paper` / `batch_upload_papers` | ✅ 三端；CLI 仅接受明确路径，批量默认预览，`upload-dir` 已移除 |
 | `GET /papers` | `paper-agent library list` | `list_papers` | ✅ |
 | `GET /papers/search`（默认 L1+L2 discovery；可选 metadata/title scope） | `paper-agent library search` | `search_papers` | ✅ |
 | `GET /papers/search/l1` | `paper-agent library search-layered --layer L1` | `search_papers_layered` | ✅ |
