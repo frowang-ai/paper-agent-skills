@@ -316,18 +316,23 @@ class LibraryService:
             ),
         }
 
+    @staticmethod
+    def validate_many(results: list[dict[str, Any]]) -> None:
+        if any(item["status"] == "pending" for item in results):
+            return
+        raise CommandError(
+            code=ErrorCode.USAGE_ERROR,
+            message=(
+                "No valid PDF files to upload. Review the per-file errors and pass absolute "
+                "paths to existing files with a .pdf extension. No upload was performed."
+            ),
+            exit_code=ExitCode.USAGE_ERROR,
+            details={"results": results},
+        )
+
     def upload_many(self, files: Iterable[Path]) -> dict[str, Any]:
         results = [self._preview_file(file) for file in files]
-        if not any(item["status"] == "pending" for item in results):
-            raise CommandError(
-                code=ErrorCode.USAGE_ERROR,
-                message=(
-                    "No valid PDF files to upload. Review the per-file errors and pass absolute "
-                    "paths to existing files with a .pdf extension. No upload was performed."
-                ),
-                exit_code=ExitCode.USAGE_ERROR,
-                details={"results": results},
-            )
+        self.validate_many(results)
         for entry in results:
             if entry["status"] != "pending":
                 continue

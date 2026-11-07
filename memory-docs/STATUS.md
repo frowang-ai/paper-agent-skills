@@ -16,8 +16,8 @@ Last verified: `2026-11-07`
   将论文目录中的正文、图件等 PDF 批量写入主库的案例，已移除 `upload-dir`，Agent 自行发现
   候选、用户确认后传绝对路径执行 `upload-many --yes`；不带 `--yes` 仅本地预览。英文 help、
   `next_action` 和路径错误承担自描述，Skill 保持精简。Skill、API surface、CHANGELOG、
-  CONVENTIONS 与 DEC-024 已同步；首轮 xhigh 审核两条 P2 已修正，收敛版待复审。
-  当前 10 项定向回归、完整 `PYTHONUTF8=1` 测试 197 passed，Ruff 与构建通过。
+  CONVENTIONS 与 DEC-024 已同步；同一 xhigh 代理两轮审核均为 PASS WITH CHANGES，意见已修正。
+  最终 11 项定向回归、完整 `PYTHONUTF8=1` 测试 198 passed，Ruff 与构建通过。
   生产案例、审核处置、协议和验证边界见[专项记录](archive/20261107_library_upload_preview.md)。
 
 - **0.9.6：`workspace add` 支持 `collab~` 引用（2026-10-18）**：修复协作副本引用在

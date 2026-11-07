@@ -244,6 +244,23 @@ def test_upload_many_rejects_all_invalid_before_remote(tmp_path: Path) -> None:
     assert client.calls == []
 
 
+def test_upload_many_cli_rejects_all_invalid_before_credentials(tmp_path: Path) -> None:
+    result = _run(
+        tmp_path,
+        "library",
+        "upload-many",
+        "missing.pdf",
+        "--yes",
+    )
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 2
+    assert payload["error"]["code"] == "USAGE_ERROR"
+    assert "No valid PDF files to upload" in payload["error"]["message"]
+    assert payload["error"]["details"]["results"][0]["error_code"] == "FILE_NOT_FOUND"
+    assert payload["error"]["details"]["results"][0]["input_path"] == "missing.pdf"
+
+
 def test_upload_many_partial_invalid_uploads_valid_and_reports_skipped(tmp_path: Path) -> None:
     client = _FakeClient()
     service = LibraryService(client)  # type: ignore[arg-type]

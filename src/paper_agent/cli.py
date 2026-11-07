@@ -1175,9 +1175,11 @@ def _upload_many_with_confirmation(
             message="Use --dry-run to preview or --yes to upload, not both.",
             exit_code=ExitCode.USAGE_ERROR,
         )
+    preview = LibraryService.preview_many(files)
     if yes:
+        LibraryService.validate_many(preview["results"])
         return _library_service(ctx).upload_many(files)
-    return LibraryService.preview_many(files)
+    return preview
 
 
 @library_app.command("upload-many")

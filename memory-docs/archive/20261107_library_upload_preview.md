@@ -69,7 +69,7 @@ paper-agent library upload-many /absolute/path/a.pdf /absolute/path/b.pdf --yes
 
 ## 验证
 
-`tests/test_library_upload_preview.py` 当前为 **10 项**：
+`tests/test_library_upload_preview.py` 当前为 **11 项**：
 
 1. 预览分类及 `FILE_NOT_FOUND/NOT_A_PDF`、输入路径、解析路径、cwd 和 `next_action`。
 2. `upload-many` 默认预览不需要凭据，保持用户给出的文件顺序。
@@ -78,16 +78,18 @@ paper-agent library upload-many /absolute/path/a.pdf /absolute/path/b.pdf --yes
    完全一致，预览阶段服务器零请求。
 5. `--dry-run --yes` 返回 `USAGE_ERROR`。
 6. 全部文件无效时拒绝执行且 Client 零调用；部分无效时合法 PDF 上传、其余逐项标为 skipped。
-7. 单篇缺失文件报错包含 cwd、输入路径、解析路径和绝对路径修正建议。
-8. help 展示 Agent 契约，且 `upload-dir` 不再出现在命令列表。
+7. 全部无效的 CLI `--yes` 在无配置、无凭据时也先返回 `USAGE_ERROR` 和逐文件路径诊断。
+8. 单篇缺失文件报错包含 cwd、输入路径、解析路径和绝对路径修正建议。
+9. help 展示 Agent 契约，且 `upload-dir` 不再出现在命令列表。
 
 测试驱动证据：首轮实现前新增测试为 **4 failed / 1 passed**，失败点分别为缺少
 `preview_many`、批量命令仍要求凭据以及不识别 `--yes`；首轮实现后目标测试 5 passed，
-独立审核加强证据后为 9 passed，收敛为明确路径和 Agent-native 错误后为 **10 passed**。
+独立审核加强证据后为 9 passed，收敛为明确路径和 Agent-native 错误后为 10 passed。
+复审指出 CLI 错误优先级后，新增回归先复现 exit 3，前移全部无效校验后为 **11 passed**。
 
-收敛后的完整检查：
+最终完整检查：
 
-- `PYTHONUTF8=1 uv run --frozen --extra dev pytest -q`：**197 passed**。
+- `PYTHONUTF8=1 uv run --frozen --extra dev pytest -q`：**198 passed**。
 - `uv run --frozen --extra dev ruff check src tests`：通过。
 - `uv build`：wheel 与 sdist 构建通过。
 - 首轮不带 `PYTHONUTF8=1` 的全量测试为 191 passed / 1 failed；失败是既有 Windows GBK
@@ -116,8 +118,18 @@ Agent 已能自行发现文件，不需要额外 discovery 命令。PR 因此移
 路径的 `upload/upload-many`。Agent 自行发现候选，用户确认，CLI 只执行确认后的绝对路径。
 
 同时采用“help、工具输出、错误”三层自描述：英文 `--help` 说明职责和示例，预览 `next_action`
-说明下一步，路径错误给出 `input_path/resolved_path/cwd` 和修正建议。Skill 不再重复长文契约。
+说明下一步，路径错误给出 `input_path/path/cwd` 和修正建议。Skill 不再重复长文契约。
 全部无效时执行明确失败且零远程调用，部分无效保留逐项状态，避免 Agent 误报全部成功。
+
+## 收敛版复审与二次修正
+
+- 同一审核代理复审 `main...b307536`，结论为 **PASS WITH CHANGES**：确认 `upload-dir` 移除完整、
+  没有未经 `--yes` 写库的路径、help 足够且上轮证据缺口已补齐。
+- 复审 P2：`upload-many --yes` 在 Service 本地分类前先构造远程服务，导致无配置/无凭据时
+  全部路径无效会先返回配置或认证错误。新增 CLI 回归复现 exit 3 后，将共享 `validate_many`
+  前移到凭据解析之前；现在全部无效稳定返回 exit 2 / `USAGE_ERROR` 和逐文件诊断。
+- 复审 P3：复盘误写不存在的 `resolved_path` 字段，已改为实际响应字段 `path`。
+- 审核代理未重复全量测试；二次修正后由主 Agent 执行 11 项定向、198 项全量、Ruff 和构建。
 
 ## 发布边界与回退
 
