@@ -8,9 +8,16 @@ not_for: "模块级实现细节、历史叙事或完整架构设计"
 
 # Current Status
 
-Last verified: `2026-10-18`
+Last verified: `2026-11-07`
 
 ## Current Focus
+
+- **批量上传默认预览与明确确认已实现，尚未发布（2026-11-07）**：针对外部 Agent 将论文
+  项目目录中的正文、图件等 PDF 批量写入主库的案例，`upload-many/upload-dir` 不带 `--yes`
+  时只做本地预览，不需要 API Key、不发网络请求；用户确认完整清单后才加 `--yes` 正式上传。
+  单篇 `upload` 不变，不按文件名静默过滤。Skill、API surface、CHANGELOG、CONVENTIONS 与
+  DEC-024 已同步；新增 5 项回归，完整 `PYTHONUTF8=1` 测试 192 passed，Ruff 与构建通过。
+  生产案例、协议和验证边界见[专项记录](archive/20261107_library_upload_preview.md)。
 
 - **0.9.6：`workspace add` 支持 `collab~` 引用（2026-10-18）**：修复协作副本引用在
   ArtifactSyncService 被拒为 `INTEGRITY_ERROR: Invalid paper_id path segment` 的缺陷：

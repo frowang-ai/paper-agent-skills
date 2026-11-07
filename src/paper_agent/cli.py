@@ -1159,16 +1159,42 @@ def library_upload(
     _library_success("library.upload", data, json_output=json_output, human=human)
 
 
+def _upload_many_with_confirmation(
+    ctx: typer.Context,
+    files: list[Path],
+    *,
+    yes: bool,
+    dry_run: bool,
+) -> dict[str, Any]:
+    if yes and dry_run:
+        raise CommandError(
+            code=ErrorCode.USAGE_ERROR,
+            message="--yes and --dry-run cannot be used together",
+            exit_code=ExitCode.USAGE_ERROR,
+        )
+    if yes:
+        return _library_service(ctx).upload_many(files)
+    return LibraryService.preview_many(files)
+
+
 @library_app.command("upload-many")
 def library_upload_many(
     ctx: typer.Context,
     files: Annotated[list[Path], typer.Argument(help="PDF paths.")],
+    yes: Annotated[
+        bool,
+        typer.Option("--yes", help="Actually upload the files after reviewing the preview."),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Preview files without uploading (the default)."),
+    ] = False,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
-    """Upload several PDFs to the remote library in one call."""
+    """Preview several PDFs; use --yes to upload them after user confirmation."""
     _ACTIVE_COMMAND.set("library.upload-many")
-    data = _library_service(ctx).upload_many(files)
+    data = _upload_many_with_confirmation(ctx, files, yes=yes, dry_run=dry_run)
     _library_success("library.upload-many", data, json_output=json_output, human=human)
 
 
@@ -1176,10 +1202,18 @@ def library_upload_many(
 def library_upload_dir(
     ctx: typer.Context,
     directory: Annotated[Path, typer.Argument(help="Directory containing PDFs.")],
+    yes: Annotated[
+        bool,
+        typer.Option("--yes", help="Actually upload the files after reviewing the preview."),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Preview files without uploading (the default)."),
+    ] = False,
     json_output: JsonOption = False,
     human: HumanOption = False,
 ) -> None:
-    """Upload every PDF found directly in a directory (not recursive)."""
+    """Preview every PDF directly in a directory; use --yes to upload them."""
     _ACTIVE_COMMAND.set("library.upload-dir")
     path = directory.expanduser().resolve()
     if not path.is_dir():
@@ -1189,9 +1223,8 @@ def library_upload_dir(
             exit_code=ExitCode.USAGE_ERROR,
             details={"path": str(path)},
         )
-    data = _library_service(ctx).upload_many(
-        sorted(item for item in path.iterdir() if item.suffix.lower() == ".pdf")
-    )
+    files = sorted(item for item in path.iterdir() if item.suffix.lower() == ".pdf")
+    data = _upload_many_with_confirmation(ctx, files, yes=yes, dry_run=dry_run)
     _library_success("library.upload-dir", data, json_output=json_output, human=human)
 
 

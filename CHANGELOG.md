@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Bulk uploads require explicit confirmation**: `library upload-many` and `library upload-dir`
+  now default to a local preview with the complete file list, `would_upload` and `skipped` counts.
+  Preview requires no API key and creates no remote papers or tasks. After reviewing the list with
+  the user, pass `--yes` to upload; `--dry-run` is the explicit preview spelling and conflicts with
+  `--yes`. Single-file `library upload` remains immediate. Filenames are not silently filtered.
+
 ## [0.9.7] - 2026-10-31
 
 ### Added

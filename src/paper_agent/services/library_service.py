@@ -258,6 +258,31 @@ class LibraryService:
             ) from exc
         return _unwrap(response)
 
+    @staticmethod
+    def preview_many(files: Iterable[Path]) -> dict[str, Any]:
+        results: list[dict[str, Any]] = []
+        for file in files:
+            path = file.expanduser().resolve()
+            entry: dict[str, Any] = {"file": path.name, "path": str(path)}
+            if not path.is_file():
+                entry.update(status="skipped", reason="file not found")
+            elif path.suffix.lower() != ".pdf":
+                entry.update(status="skipped", reason="not a PDF")
+            else:
+                entry.update(status="pending")
+            results.append(entry)
+        return {
+            "results": results,
+            "total": len(results),
+            "would_upload": sum(item["status"] == "pending" for item in results),
+            "uploaded": 0,
+            "duplicates": 0,
+            "skipped": sum(item["status"] == "skipped" for item in results),
+            "errors": 0,
+            "dry_run": True,
+            "confirmation_required": True,
+        }
+
     def upload_many(self, files: Iterable[Path]) -> dict[str, Any]:
         results: list[dict[str, Any]] = []
         for file in files:
@@ -285,10 +310,15 @@ class LibraryService:
         return {
             "results": results,
             "total": len(results),
+            "would_upload": sum(
+                item["status"] in {"uploaded", "duplicate", "error"} for item in results
+            ),
             "uploaded": sum(item["status"] == "uploaded" for item in results),
             "duplicates": sum(item["status"] == "duplicate" for item in results),
             "skipped": sum(item["status"] == "skipped" for item in results),
             "errors": sum(item["status"] == "error" for item in results),
+            "dry_run": False,
+            "confirmation_required": False,
         }
 
     def add_tags(self, paper_id: str, tags: list[str]) -> Any:

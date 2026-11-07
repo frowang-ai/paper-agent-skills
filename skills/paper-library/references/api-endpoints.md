@@ -41,7 +41,7 @@ Base URL: `https://frowang.com/paper-api/api/v1`
 
 | # | Method | Path | CLI 命令 | 说明 |
 |---|--------|------|---------|------|
-| 1 | POST | /papers | `upload FILE` / `upload-many` / `upload-dir` | 上传 PDF |
+| 1 | POST | /papers | `upload FILE` / `upload-many --yes` / `upload-dir --yes` | 上传 PDF；批量命令默认仅本地预览，`--dry-run` 显式预览，确认后必须加 `--yes` |
 | 2 | GET | /papers | `list` | 列出论文 |
 | 3 | GET | /papers/search | `search QUERY` | 论文发现（默认 L1+L2；可选 metadata/title scope） |
 | 4 | GET | /papers/search/l1 | `search-layered QUERY --layer L1` | L1 元数据全文检索 |

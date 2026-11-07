@@ -59,13 +59,35 @@ paper-agent library search-layered "IV" --layer all --layers L1,L3
 
 ## 上传论文
 
+用户说“上传这篇论文”时，只上传用户明确指定的正文文件，不要把同目录的图件、附录或其他
+PDF 自行加入：
+
 ```bash
 paper-agent library upload ./paper.pdf
-paper-agent library upload-many ./a.pdf ./b.pdf
-paper-agent library upload-dir ./pdfs
 ```
 
-批量上传逐文件返回 `uploaded`、`duplicate`、`skipped` 或 `error`。上传成功后保存返回的
+批量或目录上传会消耗积分，必须分两步。先预览完整文件名和数量；预览只在本地读取文件，
+不需要 API Key，也不会创建远程论文或任务：
+
+```bash
+paper-agent library upload-many ./a.pdf ./b.pdf --dry-run
+paper-agent library upload-dir ./pdfs --dry-run
+```
+
+向用户展示 `results` 中的文件清单及 `would_upload`、`skipped` 数量，明确指出图件等其他 PDF
+也会被当成独立论文上传。取得用户对这批文件的明确同意后，才使用同一路径和 `--yes` 正式上传：
+
+```bash
+paper-agent library upload-many ./a.pdf ./b.pdf --yes
+paper-agent library upload-dir ./pdfs --yes
+```
+
+`upload-many` 和 `upload-dir` 不带 `--yes` 时默认也只预览，不能直接用于正式上传。
+`upload-dir` 只处理目录当前层的 PDF，不递归子目录。不要根据 `fig`、`图` 等文件名静默排除；
+如清单包含非目标文件，应由用户明确选择正文路径后改用单篇 `upload`，或重新确认批量清单。
+`--yes` 与 `--dry-run` 不能同时使用。
+
+正式上传逐文件返回 `uploaded`、`duplicate`、`skipped` 或 `error`。上传成功后保存返回的
 `short_id`、`paper_id` 和 `task_id`；OCR 尚未完成时，内容命令可能返回 `NOT_READY`。
 
 ## 获取内容
